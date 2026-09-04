@@ -1,5 +1,4 @@
 import type { Project } from '../../types/index.js';
-import { saveProject } from '../../core/state.js';
 import { logger } from '../../core/logger.js';
 
 export interface LinkedInProfile {
@@ -31,12 +30,11 @@ export function createLinkedInCompanyPage(
   _project: Project,
   page: LinkedInCompanyPage
 ): LinkedInCompanyPage {
-  saveProject(project, 'create_linkedin_page');
   logger.info('LinkedInAgent', `Created LinkedIn company page: ${page.name}`);
   return page;
 }
 
-export function generateLinkedInContentPlan(project: Project): string[] {
+export function generateLinkedInContentPlan(_project: Project): string[] {
   return [
     'Industry insights and thought leadership',
     'Company culture and behind-the-scenes',
