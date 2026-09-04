@@ -16,14 +16,11 @@ async function main(): Promise<void> {
   console.log(`Created: ${project.createdAt}`);
   console.log('='.repeat(60));
 
-  const status = orchestrator.getStatus();
-  console.log('\nProject Status:');
-  console.log(`  Total Tasks: ${status.totalTasks}`);
-  console.log(`  Next Runnable: ${status.nextRunnable}`);
-  console.log('  Tasks by State:');
-  for (const [state, count] of Object.entries(status.tasksByState)) {
-    console.log(`    ${state}: ${count}`);
-  }
+  const progress = orchestrator.getProgress();
+  console.log('\nProject Progress:');
+  console.log(`  Total Tasks: ${progress.totalTasks}`);
+  console.log(`  Completed: ${progress.completedTasks}`);
+  console.log(`  Progress: ${progress.percentComplete.toFixed(1)}%`);
 
   const results = validateProject(project);
   printValidationResults(results);
