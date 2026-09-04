@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { BrowserManager } from '../src/core/browser-manager.js';
+import { BrowserManager, setBrowserManager } from '../src/core/browser-manager.js';
 import { ActionExecutor } from '../src/core/action-executor.js';
 import { ApprovalManager } from '../src/core/approval-manager.js';
 import { verifyPageState, createTextVisibleCheck, createUrlCheck } from '../src/core/verification-engine.js';
@@ -14,6 +14,7 @@ beforeAll(async () => {
   try {
     testBrowser = new BrowserManager({ headless: true, profileName: 'test-smoke' });
     await testBrowser.launch();
+    setBrowserManager(testBrowser);
     await testBrowser.navigate('https://example.com');
     browserAvailable = true;
   } catch {
@@ -28,6 +29,7 @@ afterAll(async () => {
   if (testBrowser && testBrowser.isLaunched()) {
     await testBrowser.close();
   }
+  setBrowserManager(new BrowserManager({ headless: true, profileName: 'cleanup' }));
 });
 
 describe('BrowserManager', () => {

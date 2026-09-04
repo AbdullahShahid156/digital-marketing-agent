@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Test Page</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; }
+    label { display: block; margin: 10px 0 5px; font-weight: bold; }
+    input, select { width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; }
+    button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; font-size: 16px; }
+    button:hover { background: #0056b3; }
+    #result { margin-top: 20px; padding: 15px; background: #d4edda; border: 1px solid #28a745; display: none; color: #155724; font-size: 18px; }
+  </style>
+</head>
+<body>
+  <h1>Business Profile Creator</h1>
+  <form id="profileForm">
+    <label for="businessName">Business Name</label>
+    <input type="text" id="businessName" name="businessName" placeholder="Enter business name">
+
+    <label for="category">Category</label>
+    <select id="category" name="category">
+      <option value="">-- Select Category --</option>
+      <option value="restaurant">Restaurant</option>
+      <option value="tech">Technology</option>
+      <option value="retail">Retail</option>
+      <option value="services">Services</option>
+    </select>
+
+    <button type="button" id="createBtn" onclick="handleCreate()">Create</button>
+  </form>
+
+  <div id="result"></div>
+
+  <script>
+    function handleCreate() {
+      const name = document.getElementById('businessName').value.trim();
+      const category = document.getElementById('category').value;
+
+      if (!name || !category) {
+        document.getElementById('result').style.display = 'block';
+        document.getElementById('result').style.background = '#f8d7da';
+        document.getElementById('result').style.borderColor = '#dc3545';
+        document.getElementById('result').style.color = '#721c24';
+        document.getElementById('result').textContent = 'Please fill in all fields';
+        return;
+      }
+
+      document.getElementById('result').style.display = 'block';
+      document.getElementById('result').style.background = '#d4edda';
+      document.getElementById('result').style.borderColor = '#28a745';
+      document.getElementById('result').style.color = '#155724';
+      document.getElementById('result').textContent = 'Business profile created: ' + name + ' (' + category + ')';
+    }
+  </script>
+</body>
+</html>

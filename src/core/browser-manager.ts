@@ -45,6 +45,13 @@ export class BrowserManager {
             '--disable-software-rasterizer',
             '--disable-dev-shm-usage',
             '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-accelerated-2d-canvas',
+            '--disable-accelerated-video-decode',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process',
+            '--disable-extensions',
           ],
         },
       );
@@ -59,6 +66,13 @@ export class BrowserManager {
           '--disable-software-rasterizer',
           '--disable-dev-shm-usage',
           '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-accelerated-2d-canvas',
+          '--disable-accelerated-video-decode',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process',
+          '--disable-extensions',
         ],
       });
       this.context = await browser.newContext({
