@@ -13,6 +13,16 @@ import type { Project } from '../src/types/index.js';
 
 const TEST_DATA_DIR = join(process.cwd(), 'data');
 
+function safeRmSync(path: string): void {
+  try {
+    if (existsSync(path)) {
+      rmSync(path, { recursive: true, force: true });
+    }
+  } catch {
+    // Ignore cleanup errors
+  }
+}
+
 describe('Evidence Manager', () => {
   let project: Project;
 
@@ -24,10 +34,8 @@ describe('Evidence Manager', () => {
   });
 
   afterEach(() => {
-    const projectFile = join(TEST_DATA_DIR, 'project.json');
-    if (existsSync(projectFile)) {
-      rmSync(projectFile);
-    }
+    safeRmSync(join(TEST_DATA_DIR, 'project.json'));
+    safeRmSync(join(TEST_DATA_DIR, 'project.json.tmp'));
   });
 
   it('should create evidence', () => {
