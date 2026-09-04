@@ -1,16 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { existsSync, rmSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { createNewProject, saveProject, loadProject } from '../src/core/state.js';
 import { Orchestrator } from '../src/core/orchestrator.js';
-import { createBusinessProfile } from '../src/modules/business/analyzer.js';
-import { createMarketingStrategy } from '../src/modules/marketing/strategy.js';
-import { createFacebookCampaign } from '../src/modules/meta/agent.js';
-import { runQAAudit, generateQAReport } from '../src/modules/qa/validator.js';
-import { generateFinalReport, exportReportToMarkdown } from '../src/modules/reports/generator.js';
-import { createEvidence, getEvidenceSummary } from '../src/core/evidence-manager.js';
-import { registerWebResearchTools, executeTool } from '../src/tools/index.js';
-import type { Project } from '../src/types/index.js';
 
 const TEST_DATA_DIR = join(process.cwd(), 'data');
 
@@ -19,15 +10,20 @@ function safeRmSync(path: string): void {
     if (existsSync(path)) {
       rmSync(path, { recursive: true, force: true });
     }
-  } catch {}
+  } catch {
+    // Ignore cleanup errors
+  }
 }
 
-describe('E2E: Full Project Workflow', () => {
-  let project: Project;
+describe('Demo E2E - Full Orchestration', () => {
+  let testOrchestrator: Orchestrator;
 
-  beforeEach(() => {
-    if (!existsSync(TEST_DATA_DIR)) mkdirSync(TEST_DATA_DIR, { recursive: true });
-    project = createNewProject('Hunarmand Punjab Batch-3', 'Digital Marketing & AI Final Project');
+  beforeEach(async () => {
+    if (!existsSync(TEST_DATA_DIR)) {
+      mkdirSync(TEST_DATA_DIR, { recursive: true });
+    }
+    testOrchestrator = new Orchestrator();
+    await testOrchestrator.initialize();
   });
 
   afterEach(() => {
@@ -35,101 +31,79 @@ describe('E2E: Full Project Workflow', () => {
     safeRmSync(join(TEST_DATA_DIR, 'project.json.tmp'));
   });
 
-  it('should complete full project lifecycle', async () => {
-    const orchestrator = new Orchestrator();
+  it('should load requirements and build task graph', () => {
+    const reqs = testOrchestrator.loadRequirements('ALL');
+    expect(reqs.length).toBeGreaterThanOrEqual(17);
 
-    await orchestrator.executeStep('Initialize Project', async () => {
-      project.status = 'IN_PROGRESS';
-      saveProject(project, 'init');
-      return { initialized: true };
-    });
-
-    await orchestrator.executeStep('Create Business Profile', async () => {
-      const profile = createBusinessProfile(
-        project,
-        'Hunarmand Punjab',
-        'Education',
-        'Punjab, Pakistan',
-        'Youth seeking digital skills'
-      );
-      return { profile };
-    });
-
-    await orchestrator.executeStep('Create Marketing Strategy', async () => {
-      const strategy = createMarketingStrategy(project, {
-        name: 'Digital Marketing Strategy',
-        targetAudience: 'Young professionals',
-        channels: ['Facebook', 'LinkedIn'],
-        budget: 50000,
-        goals: ['Increase enrollment', 'Brand awareness'],
-      });
-      return { strategy };
-    });
-
-    await orchestrator.executeStep('Create Facebook Campaign', async () => {
-      const campaign = createFacebookCampaign(project, {
-        name: 'Enrollment Campaign',
-        objective: 'AWARENESS',
-        budget: 25000,
-        startDate: new Date(),
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        status: 'DRAFT',
-      });
-      return { campaign };
-    });
-
-    await orchestrator.executeStep('Collect Evidence', async () => {
-      const evidence = createEvidence(project, {
-        requirementId: 'REQ-001',
-        title: 'Business Profile Evidence',
-        description: 'Business profile created successfully',
-        type: 'SCREENSHOT',
-        status: 'CAPTURED',
-      });
-      const summary = getEvidenceSummary(project);
-      return { evidence, summary };
-    });
-
-    await orchestrator.executeStep('Run QA Audit', async () => {
-      const qaReport = runQAAudit(project);
-      const markdown = generateQAReport(qaReport);
-      return { qaReport, markdownGenerated: markdown.length > 0 };
-    });
-
-    await orchestrator.executeStep('Generate Final Report', async () => {
-      const report = generateFinalReport(project);
-      const markdown = exportReportToMarkdown(report);
-      return { report, markdownGenerated: markdown.length > 0 };
-    });
-
-    project.status = 'COMPLETED';
-    saveProject(project, 'complete');
-
-    const loaded = loadProject();
-    expect(loaded).not.toBeNull();
-    expect(loaded!.status).toBe('COMPLETED');
+    const tasks = testOrchestrator.buildTaskGraph(reqs);
+    expect(tasks.length).toBeGreaterThan(30);
   });
 
-  it('should handle tool system integration', async () => {
-    registerWebResearchTools();
+  it('should execute Q1 section in DEMO_MODE', async () => {
+    const report = await testOrchestrator.executeProject('DEMO_MODE', 'Q1');
 
-    const result = await executeTool('web_search', { query: 'test' });
-    expect(result.success).toBe(true);
-  });
+    expect(report).toBeDefined();
+    expect(report.totalTasks).toBeGreaterThan(0);
+    expect(report.completedTasks + report.failedTasks + report.actionRequiredTasks + report.blockedTasks)
+      .toBe(report.totalTasks);
+    expect(report.mode).toBe('DEMO_MODE');
+    expect(report.duration).toBeGreaterThanOrEqual(0);
+    expect(report.log.length).toBeGreaterThan(0);
+  }, 60000);
 
-  it('should maintain state across operations', () => {
-    project.business = createBusinessProfile(
-      project,
-      'Test Business',
-      'Tech',
-      'Lahore',
-      'Students'
-    );
-    saveProject(project, 'add_business');
+  it('should execute Q2 section in DEMO_MODE', async () => {
+    const report = await testOrchestrator.executeProject('DEMO_MODE', 'Q2');
 
-    const loaded = loadProject();
-    expect(loaded).not.toBeNull();
-    expect(loaded!.business).not.toBeNull();
-    expect(loaded!.business!.name).toBe('Test Business');
-  });
+    expect(report).toBeDefined();
+    expect(report.totalTasks).toBeGreaterThan(0);
+    expect(report.completedTasks + report.failedTasks + report.actionRequiredTasks + report.blockedTasks)
+      .toBe(report.totalTasks);
+    expect(report.mode).toBe('DEMO_MODE');
+  }, 60000);
+
+  it('should generate progress report after execution', async () => {
+    await testOrchestrator.executeProject('DEMO_MODE', 'Q1');
+
+    const progress = testOrchestrator.getProgress();
+    expect(progress.totalTasks).toBeGreaterThan(0);
+    expect(progress.projectName).toBeDefined();
+    expect(typeof progress.percentComplete).toBe('number');
+  }, 60000);
+
+  it('should track action required tasks after execution', async () => {
+    const report = await testOrchestrator.executeProject('DEMO_MODE', 'Q1');
+
+    expect(typeof report.actionRequiredTasks).toBe('number');
+    expect(typeof report.blockedTasks).toBe('number');
+  }, 60000);
+
+  it('should allow resuming after approval', async () => {
+    const report1 = await testOrchestrator.executeProject('DEMO_MODE', 'Q1');
+
+    const actionRequiredTasks = testOrchestrator.getProject().tasks.filter(t => t.state === 'ACTION_REQUIRED');
+
+    if (actionRequiredTasks.length > 0) {
+      for (const task of actionRequiredTasks) {
+        testOrchestrator.approveTask(task.id);
+      }
+
+      const report2 = await testOrchestrator.resumeExecution('DEMO_MODE');
+      expect(report2.totalTasks).toBeGreaterThan(0);
+    }
+  }, 60000);
+
+  it('should generate execution log with entries', async () => {
+    await testOrchestrator.executeProject('DEMO_MODE', 'Q1');
+
+    const log = testOrchestrator.getExecutionLog();
+    expect(log.length).toBeGreaterThan(0);
+    expect(log[0].timestamp).toBeDefined();
+    expect(log[0].taskId).toBeDefined();
+    expect(log[0].status).toBeDefined();
+  }, 60000);
+
+  it('should print progress report without throwing', async () => {
+    await testOrchestrator.executeProject('DEMO_MODE', 'Q1');
+    expect(() => testOrchestrator.report()).not.toThrow();
+  }, 60000);
 });

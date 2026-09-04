@@ -10,6 +10,29 @@ export type TaskState =
 
 export type RequirementPriority = 'high' | 'medium' | 'low';
 
+export type TaskExecutionMode =
+  | 'AUTOMATED'
+  | 'BROWSER'
+  | 'RESEARCH'
+  | 'CONTENT'
+  | 'USER_ACTION'
+  | 'APPROVAL_REQUIRED';
+
+export interface ActionPlanStep {
+  tool: string;
+  action: string;
+  parameters: Record<string, unknown>;
+  expectedResult?: string;
+  requiresApproval?: boolean;
+  approvalRisk?: ApprovalRisk;
+}
+
+export interface TaskEvidenceRequirement {
+  title: string;
+  description: string;
+  expectedScreen: string;
+}
+
 export interface Requirement {
   id: string;
   section: string;
@@ -29,6 +52,10 @@ export interface Task {
   assignee?: string;
   dependencies: string[];
   evidence?: EvidenceItem[];
+  executionMode?: TaskExecutionMode;
+  actionPlan?: ActionPlanStep[];
+  evidenceRequirements?: TaskEvidenceRequirement[];
+  userActionInstruction?: string;
   createdAt: Date;
   updatedAt: Date;
   completedAt?: Date;

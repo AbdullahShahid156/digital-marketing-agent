@@ -76,10 +76,11 @@ export function createRequirement(
   title: string,
   description: string,
   priority: 'high' | 'medium' | 'low' = 'medium',
-  automatable: boolean = true
+  automatable: boolean = true,
+  id?: string,
 ): Requirement {
   const requirement: Requirement = {
-    id: `REQ-${project.requirements.length + 1}`,
+    id: id || `REQ-${project.requirements.length + 1}`,
     section,
     title,
     description,
