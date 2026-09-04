@@ -26,6 +26,7 @@ import { addProspect, qualifyProspect } from '../modules/prospects/research.js';
 import { createOutreachMessage } from '../modules/outreach/engine.js';
 import { generateFinalReport, exportReportToMarkdown } from '../modules/reports/generator.js';
 import { runQAAudit } from '../modules/qa/validator.js';
+import { executeFacebookQ1Workflow } from '../modules/meta/workflows.js';
 
 export interface TaskExecutorOptions {
   mode: AgentMode;
@@ -304,6 +305,48 @@ export class TaskExecutor {
   }
 
   private async executeAutomated(project: Project, task: Task, result: TaskExecutionResult): Promise<void> {
+    if (task.requirementId.startsWith('Q1')) {
+      try {
+        const workflowResult = await executeFacebookQ1Workflow(
+          project,
+          task.requirementId,
+          task,
+          this.mode,
+        );
+
+        if (workflowResult.action === 'ACTION_REQUIRED') {
+          updateTaskState(project, task.id, 'ACTION_REQUIRED');
+          result.state = 'ACTION_REQUIRED';
+          result.error = `USER_ACTION_REQUIRED: ${workflowResult.message}`;
+          return;
+        }
+
+        if (workflowResult.action === 'BLOCKED') {
+          updateTaskState(project, task.id, 'BLOCKED');
+          result.state = 'BLOCKED';
+          result.error = `BLOCKED: ${workflowResult.message}`;
+          return;
+        }
+
+        if (workflowResult.evidencePath) {
+          result.evidenceCaptured.push(workflowResult.evidencePath);
+        }
+
+        result.success = workflowResult.success;
+        if (!result.success) {
+          result.error = workflowResult.message;
+        }
+        return;
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        logger.error('TaskExecutor', `Q1 automated workflow failed: ${errorMsg}`);
+        updateTaskState(project, task.id, 'FAILED');
+        result.state = 'FAILED';
+        result.error = errorMsg;
+        return;
+      }
+    }
+
     const steps = task.actionPlan ?? [];
     for (const step of steps) {
       const actionResult = await this.executeStep(project, task, step);
@@ -317,6 +360,48 @@ export class TaskExecutor {
   }
 
   private async executeBrowser(project: Project, task: Task, result: TaskExecutionResult): Promise<void> {
+    if (task.requirementId.startsWith('Q1')) {
+      try {
+        const workflowResult = await executeFacebookQ1Workflow(
+          project,
+          task.requirementId,
+          task,
+          this.mode,
+        );
+
+        if (workflowResult.action === 'ACTION_REQUIRED') {
+          updateTaskState(project, task.id, 'ACTION_REQUIRED');
+          result.state = 'ACTION_REQUIRED';
+          result.error = `USER_ACTION_REQUIRED: ${workflowResult.message}`;
+          return;
+        }
+
+        if (workflowResult.action === 'BLOCKED') {
+          updateTaskState(project, task.id, 'BLOCKED');
+          result.state = 'BLOCKED';
+          result.error = `BLOCKED: ${workflowResult.message}`;
+          return;
+        }
+
+        if (workflowResult.evidencePath) {
+          result.evidenceCaptured.push(workflowResult.evidencePath);
+        }
+
+        result.success = workflowResult.success;
+        if (!result.success) {
+          result.error = workflowResult.message;
+        }
+        return;
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        logger.error('TaskExecutor', `Q1 workflow failed: ${errorMsg}`);
+        updateTaskState(project, task.id, 'FAILED');
+        result.state = 'FAILED';
+        result.error = errorMsg;
+        return;
+      }
+    }
+
     const steps = task.actionPlan ?? [];
     for (const step of steps) {
       const actionResult = await this.executeStep(project, task, step);
@@ -376,6 +461,45 @@ export class TaskExecutor {
 
   private async executeContent(project: Project, task: Task, result: TaskExecutionResult): Promise<void> {
     const title = task.title.toLowerCase();
+
+    if (task.requirementId.startsWith('Q1')) {
+      try {
+        const workflowResult = await executeFacebookQ1Workflow(
+          project,
+          task.requirementId,
+          task,
+          this.mode,
+        );
+
+        if (workflowResult.action === 'ACTION_REQUIRED') {
+          updateTaskState(project, task.id, 'ACTION_REQUIRED');
+          result.state = 'ACTION_REQUIRED';
+          result.error = `USER_ACTION_REQUIRED: ${workflowResult.message}`;
+          return;
+        }
+
+        if (workflowResult.action === 'BLOCKED') {
+          updateTaskState(project, task.id, 'BLOCKED');
+          result.state = 'BLOCKED';
+          result.error = `BLOCKED: ${workflowResult.message}`;
+          return;
+        }
+
+        if (workflowResult.evidencePath) {
+          result.evidenceCaptured.push(workflowResult.evidencePath);
+        }
+
+        result.success = workflowResult.success;
+        return;
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        logger.error('TaskExecutor', `Q1 content workflow failed: ${errorMsg}`);
+        updateTaskState(project, task.id, 'FAILED');
+        result.state = 'FAILED';
+        result.error = errorMsg;
+        return;
+      }
+    }
 
     if (title.includes('content') && title.includes('calendar')) {
       const items = generateContentCalendar(project, 7);
