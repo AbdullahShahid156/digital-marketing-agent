@@ -187,3 +187,77 @@ export interface QACheckResult {
   status: 'PASS' | 'FAIL' | 'WARNING' | 'SKIP';
   details: string;
 }
+
+export type AgentMode = 'DEMO_MODE' | 'LIVE_MODE';
+
+export type ApprovalRisk = 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTERNAL';
+
+export interface AgentAction {
+  id: string;
+  taskId: string;
+  tool: string;
+  action: string;
+  parameters: Record<string, unknown>;
+  expectedResult?: string;
+  requiresApproval?: boolean;
+  approvalRisk?: ApprovalRisk;
+  mode: AgentMode;
+}
+
+export interface ActionResult {
+  success: boolean;
+  actionId: string;
+  observedState?: unknown;
+  verification?: VerificationResult;
+  screenshot?: string;
+  error?: string;
+}
+
+export interface VerificationResult {
+  passed: boolean;
+  expected: string;
+  observed: string;
+  details: string;
+}
+
+export interface BrowserPageState {
+  url: string;
+  title: string;
+  visibleText: string;
+  elements: BrowserElement[];
+  screenshotPath?: string;
+}
+
+export interface BrowserElement {
+  selector: string;
+  text: string;
+  visible: boolean;
+  tag: string;
+  attributes: Record<string, string>;
+}
+
+export interface ApprovalRequest {
+  id: string;
+  actionId: string;
+  taskId: string;
+  tool: string;
+  action: string;
+  risk: ApprovalRisk;
+  reason: string;
+  status: 'PENDING' | 'APPROVED' | 'DENIED';
+  requestedAt: Date;
+  resolvedAt?: Date;
+}
+
+export interface EvidenceCapture {
+  id: string;
+  requirementId: string;
+  taskId: string;
+  actionId: string;
+  screenshotPath: string;
+  pageUrl: string;
+  pageTitle: string;
+  description: string;
+  verificationStatus: 'PENDING' | 'VERIFIED' | 'FAILED';
+  capturedAt: Date;
+}

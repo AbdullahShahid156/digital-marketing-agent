@@ -1,5 +1,7 @@
-import type { Project } from '../../types/index.js';
+import type { Project, AgentAction, AgentMode } from '../../types/index.js';
 import { logger } from '../../core/logger.js';
+import { ActionExecutor } from '../../core/action-executor.js';
+import { captureEvidence } from '../../core/evidence-manager.js';
 
 export interface LinkedInProfile {
   headline: string;
@@ -311,4 +313,99 @@ export function findClientProspects(): ClientProspect[] {
       qualificationScore: 86,
     },
   ];
+}
+
+export async function optimizeLinkedInProfileWorkflow(
+  project: Project,
+  executor: ActionExecutor,
+  profileData: LinkedInProfile,
+): Promise<{ actions: AgentAction[]; taskId: string }> {
+  const taskId = `TASK-LI-PROFILE-${Date.now()}`;
+  const actions: AgentAction[] = [];
+
+  actions.push(executor.createAction(
+    taskId, 'browser_navigate', 'navigate',
+    { url: 'https://www.linkedin.com/in/me/edit-headline/' },
+    'Edit',
+    true,
+  ));
+
+  actions.push(executor.createAction(
+    taskId, 'browser_fill', 'fill_headline',
+    { selector: 'input[name="headline"]', value: profileData.headline },
+    profileData.headline,
+  ));
+
+  actions.push(executor.createAction(
+    taskId, 'browser_fill', 'fill_summary',
+    { selector: 'textarea[name="summary"]', value: profileData.summary },
+    profileData.summary,
+  ));
+
+  actions.push(executor.createAction(
+    taskId, 'browser_click', 'save_profile',
+    { selector: 'button:has-text("Save")' },
+  ));
+
+  actions.push(executor.createAction(
+    taskId, 'browser_screenshot', 'capture_profile',
+    { filename: `linkedin-profile-optimized-${Date.now()}.png` },
+  ));
+
+  await captureEvidence(project, 'Q2-R1', taskId, actions[0].id,
+    'LinkedIn Profile Optimized', 'Screenshot of optimized LinkedIn profile', 'q2');
+
+  const optimized = optimizeLinkedInProfile(project, profileData);
+  logger.info('LinkedInAgent', `Created profile workflow: ${optimized.headline}`);
+  return { actions, taskId };
+}
+
+export async function createCompanyPageWorkflow(
+  project: Project,
+  executor: ActionExecutor,
+  pageData: LinkedInCompanyPage,
+): Promise<{ actions: AgentAction[]; taskId: string }> {
+  const taskId = `TASK-LI-COMPANY-${Date.now()}`;
+  const actions: AgentAction[] = [];
+
+  actions.push(executor.createAction(
+    taskId, 'browser_navigate', 'navigate',
+    { url: 'https://www.linkedin.com/company/setup/new/' },
+    'Create',
+    true,
+  ));
+
+  actions.push(executor.createAction(
+    taskId, 'browser_fill', 'fill_company_name',
+    { selector: 'input[name="companyName"]', value: pageData.name },
+    pageData.name,
+  ));
+
+  actions.push(executor.createAction(
+    taskId, 'browser_fill', 'fill_description',
+    { selector: 'textarea[name="description"]', value: pageData.description },
+    pageData.description,
+  ));
+
+  actions.push(executor.createAction(
+    taskId, 'browser_fill', 'fill_website',
+    { selector: 'input[name="website"]', value: pageData.website },
+  ));
+
+  actions.push(executor.createAction(
+    taskId, 'browser_click', 'submit_company',
+    { selector: 'button:has-text("Create")' },
+  ));
+
+  actions.push(executor.createAction(
+    taskId, 'browser_screenshot', 'capture_company',
+    { filename: `linkedin-company-${Date.now()}.png` },
+  ));
+
+  await captureEvidence(project, 'Q2-R2', taskId, actions[0].id,
+    'LinkedIn Company Page Created', `Company page "${pageData.name}" setup`, 'q2');
+
+  const created = createLinkedInCompanyPage(project, pageData);
+  logger.info('LinkedInAgent', `Created company page workflow: ${created.name}`);
+  return { actions, taskId };
 }

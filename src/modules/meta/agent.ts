@@ -1,6 +1,8 @@
-import type { Project, Campaign, AdSet, Ad } from '../../types/index.js';
+import type { Project, Campaign, AdSet, Ad, AgentAction, AgentMode } from '../../types/index.js';
 import { saveProject } from '../../core/state.js';
 import { logger } from '../../core/logger.js';
+import { ActionExecutor } from '../../core/action-executor.js';
+import { captureEvidence } from '../../core/evidence-manager.js';
 
 export interface FacebookPageOptimization {
   profilePhoto: string;
@@ -281,4 +283,97 @@ export function generateCampaignStructure(campaignName: string, objective: strin
     '    Ad 2A: Carousel Ad - Shop Now CTA',
     '    Ad 2B: Single Image Ad - Contact Us CTA',
   ];
+}
+
+export async function createFacebookPageWorkflow(
+  project: Project,
+  executor: ActionExecutor,
+  businessName: string,
+  pageType: string = 'business',
+): Promise<{ actions: AgentAction[]; taskId: string }> {
+  const taskId = `TASK-FB-PAGE-${Date.now()}`;
+  const actions: AgentAction[] = [];
+
+  actions.push(executor.createAction(
+    taskId, 'browser_navigate', 'navigate',
+    { url: 'https://www.facebook.com/pages/create' },
+    'Create a Page',
+    true,
+  ));
+
+  actions.push(executor.createAction(
+    taskId, 'browser_fill', 'fill_page_name',
+    { selector: 'input[name="page_name"]', value: businessName },
+    businessName,
+  ));
+
+  actions.push(executor.createAction(
+    taskId, 'browser_select', 'select_category',
+    { selector: 'select[name="category"]', value: pageType },
+  ));
+
+  actions.push(executor.createAction(
+    taskId, 'browser_click', 'submit_page_creation',
+    { selector: 'button[type="submit"]' },
+  ));
+
+  actions.push(executor.createAction(
+    taskId, 'browser_screenshot', 'capture_page_created',
+    { filename: `meta-page-created-${Date.now()}.png` },
+  ));
+
+  await captureEvidence(project, 'Q1-R1', taskId, actions[0].id,
+    'Facebook Page Created', 'Screenshot of newly created Facebook page', 'q1');
+
+  logger.info('FacebookAgent', `Created Facebook page workflow for: ${businessName}`);
+  return { actions, taskId };
+}
+
+export async function createCampaignWorkflow(
+  project: Project,
+  executor: ActionExecutor,
+  campaignName: string,
+  objective: string,
+  budget: string,
+): Promise<{ actions: AgentAction[]; taskId: string }> {
+  const taskId = `TASK-FB-CAMP-${Date.now()}`;
+  const actions: AgentAction[] = [];
+
+  actions.push(executor.createAction(
+    taskId, 'browser_navigate', 'navigate',
+    { url: 'https://business.facebook.com/adsmanager' },
+    'Ads Manager',
+    true,
+  ));
+
+  actions.push(executor.createAction(
+    taskId, 'browser_click', 'create_campaign',
+    { selector: 'button:has-text("Create")' },
+    'Create',
+  ));
+
+  actions.push(executor.createAction(
+    taskId, 'browser_click', 'select_objective',
+    { selector: `button:has-text("${objective}")` },
+    objective,
+  ));
+
+  actions.push(executor.createAction(
+    taskId, 'browser_fill', 'fill_campaign_name',
+    { selector: 'input[data-testid="campaign-name"]', value: campaignName },
+    campaignName,
+  ));
+
+  const campaign = createFacebookCampaign(project, campaignName, objective, budget);
+
+  actions.push(executor.createAction(
+    taskId, 'browser_screenshot', 'capture_campaign',
+    { filename: `meta-campaign-${campaign.id}.png` },
+  ));
+
+  await captureEvidence(project, 'Q1-R5', taskId, actions[0].id,
+    'Facebook Campaign Created', `Campaign "${campaignName}" setup in Meta Ads Manager`, 'q1');
+
+  logger.info('FacebookAgent', `Created campaign workflow: ${campaignName}`);
+  return { actions, taskId };
 }

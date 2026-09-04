@@ -1,6 +1,70 @@
-import type { EvidenceItem, Project } from '../types/index.js';
+import type { EvidenceItem, Project, EvidenceCapture } from '../types/index.js';
 import { saveProject } from './state.js';
 import { logger } from './logger.js';
+import { getBrowserManager } from './browser-manager.js';
+import { join } from 'node:path';
+import { mkdirSync, existsSync } from 'node:fs';
+
+const EVIDENCE_BASE = join(process.cwd(), 'evidence');
+
+export async function captureEvidence(
+  project: Project,
+  requirementId: string,
+  taskId: string,
+  actionId: string,
+  title: string,
+  description: string,
+  section: 'q1' | 'q2' = 'q1',
+): Promise<EvidenceCapture | null> {
+  const dir = join(EVIDENCE_BASE, section);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+
+  const filename = `${section}-${taskId}-${Date.now()}.png`;
+  let screenshotPath: string | null = null;
+
+  try {
+    const browser = getBrowserManager();
+    if (browser.isLaunched()) {
+      screenshotPath = await browser.screenshot(filename);
+    }
+  } catch {
+    logger.warn('EvidenceManager', 'Could not capture screenshot - browser not available');
+  }
+
+  const state = project.evidence.find(e => e.taskId === taskId && e.requirementId === requirementId);
+  if (state) {
+    state.status = 'CAPTURED';
+    state.screenshotPath = screenshotPath || join(dir, filename);
+    saveProject(project);
+  }
+
+  const capture: EvidenceCapture = {
+    id: `ECAP-${Date.now()}`,
+    requirementId,
+    taskId,
+    actionId,
+    screenshotPath: screenshotPath || join(dir, filename),
+    pageUrl: '',
+    pageTitle: '',
+    description,
+    verificationStatus: 'PENDING',
+    capturedAt: new Date(),
+  };
+
+  try {
+    const browser = getBrowserManager();
+    if (browser.isLaunched()) {
+      const s = await browser.getCurrentState();
+      capture.pageUrl = s.url;
+      capture.pageTitle = s.title;
+    }
+  } catch {
+    // ignore
+  }
+
+  logger.info('EvidenceManager', `Captured evidence: ${title} -> ${capture.screenshotPath}`);
+  return capture;
+}
 
 export function createEvidence(
   project: Project,

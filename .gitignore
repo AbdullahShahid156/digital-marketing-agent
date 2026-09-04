@@ -11,3 +11,5 @@ coverage/
 .tscache/
 .vscode/
 .idea/
+browser-profiles/
+evidence/
