@@ -1,5 +1,5 @@
-import { createTool } from '../tools/registry.js';
-import type { Tool } from '../tools/registry.js';
+import { createTool, toolRegistry } from '../tools/registry.js';
+import type { Tool, ToolResult } from '../tools/registry.js';
 
 export interface SearchResult {
   title: string;
@@ -74,6 +74,25 @@ export function createWebFetchTool(): Tool {
       };
     }
   );
+}
+
+export function registerWebResearchTools(): void {
+  const tools = getWebResearchTools();
+  for (const tool of tools) {
+    toolRegistry.register(tool);
+  }
+}
+
+export async function executeTool(toolName: string, params: Record<string, unknown>): Promise<ToolResult> {
+  const tool = toolRegistry.get(toolName);
+  if (!tool) {
+    return {
+      success: false,
+      error: `Tool not found: ${toolName}`,
+      timestamp: new Date(),
+    };
+  }
+  return tool.execute(params);
 }
 
 export function getWebResearchTools(): Tool[] {
