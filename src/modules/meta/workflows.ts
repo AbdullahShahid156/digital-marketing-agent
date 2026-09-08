@@ -23,7 +23,7 @@ import { generateContentCalendar as generateContentCalendarModule } from '../con
 
 export interface WorkflowResult {
   success: boolean;
-  action: 'COMPLETED' | 'ACTION_REQUIRED' | 'BLOCKED' | 'DEMO';
+  action: 'COMPLETED' | 'ACTION_REQUIRED' | 'BLOCKED' | 'DEMO' | 'SIMULATED' | 'FAILED';
   message: string;
   evidencePath?: string;
   details?: Record<string, unknown>;

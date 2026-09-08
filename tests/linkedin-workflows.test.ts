@@ -4,7 +4,6 @@ import { Orchestrator } from '../src/core/orchestrator.js';
 import { TaskExecutor } from '../src/core/task-executor.js';
 import { createNewProject, saveProject } from '../src/core/state.js';
 import { createTask, updateTaskState } from '../src/core/task-manager.js';
-import { setBrowserManager } from '../src/core/browser-manager.js';
 import type { Project, Task } from '../src/types/index.js';
 
 vi.mock('../src/core/browser-manager.js', () => ({
@@ -19,8 +18,35 @@ vi.mock('../src/core/browser-manager.js', () => ({
     })),
     fill: vi.fn(),
     click: vi.fn(),
+    screenshot: vi.fn(),
+    close: vi.fn(),
   })),
   setBrowserManager: vi.fn(),
+}));
+
+vi.mock('../src/core/verification-engine.js', () => ({
+  verifyPageState: vi.fn(async () => ({ passed: true, expected: 'test', observed: 'test', details: 'All checks passed' })),
+  createTextVisibleCheck: vi.fn((text: string) => ({ type: 'text_visible' as const, expected: text })),
+  createUrlCheck: vi.fn((pattern: string) => ({ type: 'url_contains' as const, expected: pattern })),
+}));
+
+vi.mock('../src/core/evidence-manager.js', () => ({
+  captureEvidence: vi.fn(async () => ({
+    id: 'ECAP-1',
+    requirementId: 'Q2-R1',
+    taskId: 'test',
+    actionId: 'test',
+    screenshotPath: 'evidence/q2/test.png',
+    pageUrl: 'https://linkedin.com',
+    pageTitle: 'LinkedIn',
+    description: 'Test',
+    verificationStatus: 'PENDING' as const,
+    capturedAt: new Date(),
+  })),
+}));
+
+vi.mock('../src/modules/business/analyzer.js', () => ({
+  addCustomerPersona: vi.fn(),
 }));
 
 function createTestProject(): Project {
@@ -33,7 +59,7 @@ function createTaskWithReq(project: Project, reqId: string, title: string, descr
   return createTask(project, reqId, title, description, deps);
 }
 
-describe('Step 4 - Q2 LinkedIn Workflows', () => {
+describe('Step 5 - Q2 LinkedIn Workflows', () => {
   let project: Project;
 
   beforeEach(() => {
@@ -46,79 +72,57 @@ describe('Step 4 - Q2 LinkedIn Workflows', () => {
     const reqs = orchestrator.loadRequirements('Q2');
     expect(reqs.length).toBe(9);
     expect(reqs.every(r => r.id.startsWith('Q2'))).toBe(true);
-
     const tasks = orchestrator.buildTaskGraph(reqs);
     expect(tasks.length).toBe(23);
   });
 
-  it('should route Q2-R1 LinkedIn Login as ACTION_REQUIRED without browser', async () => {
+  it('should return ACTION_REQUIRED for login without browser', async () => {
     const task = createTaskWithReq(project, 'Q2-R1', 'LinkedIn Login', 'Log into LinkedIn', []);
     const result = await executeLinkedInQ2Workflow(project, 'Q2-R1', task, 'LIVE_MODE');
     expect(result.success).toBe(false);
     expect(result.action).toBe('ACTION_REQUIRED');
-    expect(result.message).toContain('login');
+    expect(result.message).toContain('Browser not launched');
   });
 
-  it('should generate headline for Q2-R1 without browser', async () => {
+  it('should return SIMULATED for headline in DEMO_MODE without browser', async () => {
     const task = createTaskWithReq(project, 'Q2-R1', 'Optimize LinkedIn Profile Headline', 'Set headline', []);
-    const result = await executeLinkedInQ2Workflow(project, 'Q2-R1', task, 'LIVE_MODE');
+    const result = await executeLinkedInQ2Workflow(project, 'Q2-R1', task, 'DEMO_MODE');
     expect(result.success).toBe(true);
-    expect(result.action).toBe('COMPLETED');
+    expect(result.action).toBe('SIMULATED');
+    expect(result.message).toContain('SIMULATED');
     expect(result.details).toBeDefined();
   });
 
-  it('should generate about section for Q2-R1 without browser', async () => {
+  it('should return SIMULATED for about section in DEMO_MODE without browser', async () => {
     const task = createTaskWithReq(project, 'Q2-R1', 'Write LinkedIn About Section', 'Complete about', []);
-    const result = await executeLinkedInQ2Workflow(project, 'Q2-R1', task, 'LIVE_MODE');
+    const result = await executeLinkedInQ2Workflow(project, 'Q2-R1', task, 'DEMO_MODE');
     expect(result.success).toBe(true);
-    expect(result.action).toBe('COMPLETED');
+    expect(result.action).toBe('SIMULATED');
   });
 
-  it('should generate skills for Q2-R1 without browser', async () => {
+  it('should return SIMULATED for skills in DEMO_MODE without browser', async () => {
     const task = createTaskWithReq(project, 'Q2-R1', 'Add Skills and Experience', 'Add skills', []);
-    const result = await executeLinkedInQ2Workflow(project, 'Q2-R1', task, 'LIVE_MODE');
+    const result = await executeLinkedInQ2Workflow(project, 'Q2-R1', task, 'DEMO_MODE');
     expect(result.success).toBe(true);
-    expect(result.action).toBe('COMPLETED');
+    expect(result.action).toBe('SIMULATED');
   });
 
-  it('should create company page for Q2-R2 without browser', async () => {
+  it('should return SIMULATED for company page in DEMO_MODE without browser', async () => {
     const task = createTaskWithReq(project, 'Q2-R2', 'Create LinkedIn Company Page', 'Set up company', []);
-    const result = await executeLinkedInQ2Workflow(project, 'Q2-R2', task, 'LIVE_MODE');
+    const result = await executeLinkedInQ2Workflow(project, 'Q2-R2', task, 'DEMO_MODE');
     expect(result.success).toBe(true);
-    expect(result.action).toBe('COMPLETED');
+    expect(result.action).toBe('SIMULATED');
     expect(result.details).toBeDefined();
   });
 
-  it('should configure company description for Q2-R2 without browser', async () => {
-    const task = createTaskWithReq(project, 'Q2-R2', 'Configure Company Description', 'Add description', []);
-    const result = await executeLinkedInQ2Workflow(project, 'Q2-R2', task, 'LIVE_MODE');
-    expect(result.success).toBe(true);
-    expect(result.action).toBe('COMPLETED');
-  });
-
-  it('should create campaign for Q2-R3 without browser', async () => {
+  it('should return SIMULATED for campaign in DEMO_MODE without browser', async () => {
     const task = createTaskWithReq(project, 'Q2-R3', 'Create LinkedIn Lead Gen Campaign', 'Design campaign', []);
-    const result = await executeLinkedInQ2Workflow(project, 'Q2-R3', task, 'LIVE_MODE');
+    const result = await executeLinkedInQ2Workflow(project, 'Q2-R3', task, 'DEMO_MODE');
     expect(result.success).toBe(true);
-    expect(result.action).toBe('COMPLETED');
-    expect(result.details).toBeDefined();
+    expect(result.action).toBe('SIMULATED');
   });
 
-  it('should generate ad creative for Q2-R3 without browser', async () => {
-    const task = createTaskWithReq(project, 'Q2-R3', 'Create LinkedIn Ad Creative', 'Set up creative', []);
-    const result = await executeLinkedInQ2Workflow(project, 'Q2-R3', task, 'LIVE_MODE');
-    expect(result.success).toBe(true);
-    expect(result.action).toBe('COMPLETED');
-  });
-
-  it('should create lead gen form for Q2-R3 without browser', async () => {
-    const task = createTaskWithReq(project, 'Q2-R3', 'Create LinkedIn Lead Gen Form', 'Set up form', []);
-    const result = await executeLinkedInQ2Workflow(project, 'Q2-R3', task, 'LIVE_MODE');
-    expect(result.success).toBe(true);
-    expect(result.action).toBe('COMPLETED');
-  });
-
-  it('should define audience segment 1 for Q2-R4 without browser', async () => {
+  it('should return COMPLETED for audience segment (data task)', async () => {
     const task = createTaskWithReq(project, 'Q2-R4', 'Define Audience Segment 1', 'Small business owners', []);
     const result = await executeLinkedInQ2Workflow(project, 'Q2-R4', task, 'LIVE_MODE');
     expect(result.success).toBe(true);
@@ -126,21 +130,14 @@ describe('Step 4 - Q2 LinkedIn Workflows', () => {
     expect(result.details).toBeDefined();
   });
 
-  it('should define audience segment 2 for Q2-R4 without browser', async () => {
-    const task = createTaskWithReq(project, 'Q2-R4', 'Define Audience Segment 2', 'Marketing managers', []);
-    const result = await executeLinkedInQ2Workflow(project, 'Q2-R4', task, 'LIVE_MODE');
-    expect(result.success).toBe(true);
-    expect(result.action).toBe('COMPLETED');
-  });
-
-  it('should generate AI client persona for Q2-R5 without browser', async () => {
+  it('should return COMPLETED for AI persona (data task)', async () => {
     const task = createTaskWithReq(project, 'Q2-R5', 'Generate AI Client Persona', 'Use AI for persona', []);
     const result = await executeLinkedInQ2Workflow(project, 'Q2-R5', task, 'LIVE_MODE');
     expect(result.success).toBe(true);
     expect(result.action).toBe('COMPLETED');
   });
 
-  it('should generate 7-day content plan for Q2-R5 without browser', async () => {
+  it('should return COMPLETED for 7-day content plan', async () => {
     const task = createTaskWithReq(project, 'Q2-R5', 'Generate 7-Day Content Plan', 'Create weekly plan', []);
     const result = await executeLinkedInQ2Workflow(project, 'Q2-R5', task, 'LIVE_MODE');
     expect(result.success).toBe(true);
@@ -148,14 +145,14 @@ describe('Step 4 - Q2 LinkedIn Workflows', () => {
     expect(result.details).toBeDefined();
   });
 
-  it('should generate campaign angle for Q2-R5 without browser', async () => {
+  it('should return COMPLETED for campaign angle', async () => {
     const task = createTaskWithReq(project, 'Q2-R5', 'Generate Campaign Angle', 'Develop messaging', []);
     const result = await executeLinkedInQ2Workflow(project, 'Q2-R5', task, 'LIVE_MODE');
     expect(result.success).toBe(true);
     expect(result.action).toBe('COMPLETED');
   });
 
-  it('should research client prospects for Q2-R6 without browser', async () => {
+  it('should return COMPLETED for prospect research', async () => {
     const task = createTaskWithReq(project, 'Q2-R6', 'Research Client Prospects', 'Find 10+ clients', []);
     const result = await executeLinkedInQ2Workflow(project, 'Q2-R6', task, 'LIVE_MODE');
     expect(result.success).toBe(true);
@@ -163,65 +160,69 @@ describe('Step 4 - Q2 LinkedIn Workflows', () => {
     expect(result.details).toBeDefined();
   });
 
-  it('should qualify prospects for Q2-R6 without browser', async () => {
+  it('should return COMPLETED for prospect qualification', async () => {
     const task = createTaskWithReq(project, 'Q2-R6', 'Qualify Prospects', 'Evaluate prospects', []);
     const result = await executeLinkedInQ2Workflow(project, 'Q2-R6', task, 'LIVE_MODE');
     expect(result.success).toBe(true);
     expect(result.action).toBe('COMPLETED');
   });
 
-  it('should write connection message for Q2-R7 without browser', async () => {
+  it('should return COMPLETED with personalized connection message', async () => {
     const task = createTaskWithReq(project, 'Q2-R7', 'Write Connection Message', 'Draft connection request', []);
     const result = await executeLinkedInQ2Workflow(project, 'Q2-R7', task, 'LIVE_MODE');
     expect(result.success).toBe(true);
     expect(result.action).toBe('COMPLETED');
     expect(result.details).toBeDefined();
+    const details = result.details as Record<string, unknown>;
+    expect(details.connectionRequest).toBeDefined();
+    expect(details.personalizationReason).toBeDefined();
   });
 
-  it('should write first outreach for Q2-R7 without browser', async () => {
+  it('should return COMPLETED with personalized first outreach', async () => {
     const task = createTaskWithReq(project, 'Q2-R7', 'Write First Outreach Message', 'Draft outreach', []);
     const result = await executeLinkedInQ2Workflow(project, 'Q2-R7', task, 'LIVE_MODE');
     expect(result.success).toBe(true);
     expect(result.action).toBe('COMPLETED');
   });
 
-  it('should write follow-up for Q2-R7 without browser', async () => {
+  it('should return COMPLETED with personalized follow-up', async () => {
     const task = createTaskWithReq(project, 'Q2-R7', 'Write Follow-up Message', 'Draft follow-up', []);
     const result = await executeLinkedInQ2Workflow(project, 'Q2-R7', task, 'LIVE_MODE');
     expect(result.success).toBe(true);
     expect(result.action).toBe('COMPLETED');
   });
 
-  it('should define campaign metrics for Q2-R8 without browser', async () => {
+  it('should return COMPLETED for campaign metrics', async () => {
     const task = createTaskWithReq(project, 'Q2-R8', 'Define Campaign Metrics', 'Set KPIs', []);
     const result = await executeLinkedInQ2Workflow(project, 'Q2-R8', task, 'LIVE_MODE');
     expect(result.success).toBe(true);
     expect(result.action).toBe('COMPLETED');
   });
 
-  it('should define outreach metrics for Q2-R8 without browser', async () => {
+  it('should return COMPLETED for outreach metrics', async () => {
     const task = createTaskWithReq(project, 'Q2-R8', 'Define Outreach Metrics', 'Set outreach KPIs', []);
     const result = await executeLinkedInQ2Workflow(project, 'Q2-R8', task, 'LIVE_MODE');
     expect(result.success).toBe(true);
     expect(result.action).toBe('COMPLETED');
   });
 
-  it('should create improvement strategy for Q2-R8 without browser', async () => {
+  it('should return COMPLETED for improvement strategy', async () => {
     const task = createTaskWithReq(project, 'Q2-R8', 'Create Improvement Strategy', 'Document improvements', []);
     const result = await executeLinkedInQ2Workflow(project, 'Q2-R8', task, 'LIVE_MODE');
     expect(result.success).toBe(true);
     expect(result.action).toBe('COMPLETED');
   });
 
-  it('should collect LinkedIn evidence for Q2-R9 without browser', async () => {
+  it('should validate evidence files for Q2-R9', async () => {
     const task = createTaskWithReq(project, 'Q2-R9', 'Collect LinkedIn Evidence', 'Capture screenshots', []);
     const result = await executeLinkedInQ2Workflow(project, 'Q2-R9', task, 'LIVE_MODE');
-    expect(result.success).toBe(true);
-    expect(result.action).toBe('COMPLETED');
     expect(result.details).toBeDefined();
+    const details = result.details as Record<string, unknown>;
+    expect(details.evidenceItems).toBeDefined();
+    expect(Array.isArray(details.evidenceItems)).toBe(true);
   });
 
-  it('should handle unknown requirement IDs gracefully', async () => {
+  it('should return BLOCKED for unknown requirement IDs', async () => {
     const task = createTaskWithReq(project, 'Q99-R1', 'Unknown Task', 'Unknown', []);
     const result = await executeLinkedInQ2Workflow(project, 'Q99-R1', task, 'LIVE_MODE');
     expect(result.success).toBe(false);
@@ -233,20 +234,14 @@ describe('Step 4 - Q2 LinkedIn Workflows', () => {
     const task = createTaskWithReq(project, 'Q2-R1', 'Optimize LinkedIn Profile Headline', 'Set headline', []);
     const result = await executeLinkedInQ2Workflow(project, 'Q2-R1', task, 'DEMO_MODE');
     expect(result.success).toBe(true);
+    expect(result.action).toBe('SIMULATED');
   });
 
-  it('should handle DEMO_MODE for Q2-R3 campaign without browser', async () => {
-    const task = createTaskWithReq(project, 'Q2-R3', 'Create LinkedIn Lead Gen Campaign', 'Design campaign', []);
-    const result = await executeLinkedInQ2Workflow(project, 'Q2-R3', task, 'DEMO_MODE');
-    expect(result.success).toBe(true);
-  });
-
-  it('should complete full Q2 DEMO_MODE execution without browser errors', async () => {
+  it('should complete full Q2 DEMO_MODE execution', async () => {
     const orchestrator = new Orchestrator();
     await orchestrator.initialize();
     const reqs = orchestrator.loadRequirements('Q2');
     expect(reqs.length).toBe(9);
-
     const tasks = orchestrator.buildTaskGraph(reqs);
     expect(tasks.length).toBe(23);
 

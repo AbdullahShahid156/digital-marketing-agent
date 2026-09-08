@@ -9,6 +9,8 @@ import {
 } from './task-manager.js';
 import { TaskExecutor, type TaskExecutionResult } from './task-executor.js';
 import { ALL_REQUIREMENTS } from '../modules/requirements/assignment.js';
+import { getBrowserManager, setBrowserManager } from './browser-manager.js';
+import { registerBrowserTools } from '../tools/browser-tools.js';
 import { logger } from './logger.js';
 
 export interface StepResult {
@@ -421,6 +423,39 @@ export class Orchestrator {
 
     logger.info('Orchestrator', `Starting project execution in ${mode} mode`);
 
+    if (mode === 'LIVE_MODE') {
+      this.printLog('LIVE_MODE: Initializing browser...');
+      try {
+        registerBrowserTools();
+        const browser = getBrowserManager({
+          headless: false,
+          profileName: 'linkedin-session',
+        });
+        await browser.launch();
+        setBrowserManager(browser);
+        this.printLog('Browser launched successfully');
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        logger.error('Orchestrator', `Browser launch failed: ${errorMsg}`);
+        this.printLog(`Browser launch failed: ${errorMsg}`);
+        this.printLog('LIVE_MODE requires a working browser. Cannot continue.');
+        return {
+          projectName: project.name,
+          mode,
+          startedAt: startTime,
+          finishedAt: new Date(),
+          duration: Date.now() - startTime.getTime(),
+          totalTasks: 0,
+          completedTasks: 0,
+          failedTasks: 0,
+          actionRequiredTasks: 0,
+          blockedTasks: 0,
+          evidenceCaptured: [],
+          log: [],
+        };
+      }
+    }
+
     this.printLog('Loading requirements...');
     const requirements = this.loadRequirements(section);
     this.printLog(`Loaded ${requirements.length} requirements`);
@@ -527,6 +562,18 @@ export class Orchestrator {
       evidenceCaptured: allEvidence,
       log: this.executionLog,
     };
+
+    if (mode === 'LIVE_MODE') {
+      try {
+        const browser = getBrowserManager();
+        if (browser.isLaunched()) {
+          await browser.close();
+          this.printLog('Browser closed');
+        }
+      } catch {
+        // ignore close errors
+      }
+    }
 
     this.printExecutionSummary(report);
     return report;

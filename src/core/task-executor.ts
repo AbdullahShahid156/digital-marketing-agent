@@ -329,6 +329,13 @@ export class TaskExecutor {
           return;
         }
 
+        if (workflowResult.action === 'FAILED') {
+          updateTaskState(project, task.id, 'FAILED');
+          result.state = 'FAILED';
+          result.error = workflowResult.message;
+          return;
+        }
+
         if (workflowResult.evidencePath) {
           result.evidenceCaptured.push(workflowResult.evidencePath);
         }
@@ -368,6 +375,13 @@ export class TaskExecutor {
           updateTaskState(project, task.id, 'BLOCKED');
           result.state = 'BLOCKED';
           result.error = `BLOCKED: ${workflowResult.message}`;
+          return;
+        }
+
+        if (workflowResult.action === 'FAILED') {
+          updateTaskState(project, task.id, 'FAILED');
+          result.state = 'FAILED';
+          result.error = workflowResult.message;
           return;
         }
 
@@ -426,6 +440,13 @@ export class TaskExecutor {
           return;
         }
 
+        if (workflowResult.action === 'FAILED') {
+          updateTaskState(project, task.id, 'FAILED');
+          result.state = 'FAILED';
+          result.error = workflowResult.message;
+          return;
+        }
+
         if (workflowResult.evidencePath) {
           result.evidenceCaptured.push(workflowResult.evidencePath);
         }
@@ -465,6 +486,13 @@ export class TaskExecutor {
           updateTaskState(project, task.id, 'BLOCKED');
           result.state = 'BLOCKED';
           result.error = `BLOCKED: ${workflowResult.message}`;
+          return;
+        }
+
+        if (workflowResult.action === 'FAILED') {
+          updateTaskState(project, task.id, 'FAILED');
+          result.state = 'FAILED';
+          result.error = workflowResult.message;
           return;
         }
 
@@ -570,6 +598,13 @@ export class TaskExecutor {
           return;
         }
 
+        if (workflowResult.action === 'FAILED') {
+          updateTaskState(project, task.id, 'FAILED');
+          result.state = 'FAILED';
+          result.error = workflowResult.message;
+          return;
+        }
+
         if (workflowResult.evidencePath) {
           result.evidenceCaptured.push(workflowResult.evidencePath);
         }
@@ -606,6 +641,13 @@ export class TaskExecutor {
           updateTaskState(project, task.id, 'BLOCKED');
           result.state = 'BLOCKED';
           result.error = `BLOCKED: ${workflowResult.message}`;
+          return;
+        }
+
+        if (workflowResult.action === 'FAILED') {
+          updateTaskState(project, task.id, 'FAILED');
+          result.state = 'FAILED';
+          result.error = workflowResult.message;
           return;
         }
 
