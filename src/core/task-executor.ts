@@ -27,6 +27,7 @@ import { createOutreachMessage } from '../modules/outreach/engine.js';
 import { generateFinalReport, exportReportToMarkdown } from '../modules/reports/generator.js';
 import { runQAAudit } from '../modules/qa/validator.js';
 import { executeFacebookQ1Workflow } from '../modules/meta/workflows.js';
+import { executeLinkedInQ2Workflow } from '../modules/linkedin/workflows.js';
 
 export interface TaskExecutorOptions {
   mode: AgentMode;
@@ -347,6 +348,48 @@ export class TaskExecutor {
       }
     }
 
+    if (task.requirementId.startsWith('Q2')) {
+      try {
+        const workflowResult = await executeLinkedInQ2Workflow(
+          project,
+          task.requirementId,
+          task,
+          this.mode,
+        );
+
+        if (workflowResult.action === 'ACTION_REQUIRED') {
+          updateTaskState(project, task.id, 'ACTION_REQUIRED');
+          result.state = 'ACTION_REQUIRED';
+          result.error = `USER_ACTION_REQUIRED: ${workflowResult.message}`;
+          return;
+        }
+
+        if (workflowResult.action === 'BLOCKED') {
+          updateTaskState(project, task.id, 'BLOCKED');
+          result.state = 'BLOCKED';
+          result.error = `BLOCKED: ${workflowResult.message}`;
+          return;
+        }
+
+        if (workflowResult.evidencePath) {
+          result.evidenceCaptured.push(workflowResult.evidencePath);
+        }
+
+        result.success = workflowResult.success;
+        if (!result.success) {
+          result.error = workflowResult.message;
+        }
+        return;
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        logger.error('TaskExecutor', `Q2 automated workflow failed: ${errorMsg}`);
+        updateTaskState(project, task.id, 'FAILED');
+        result.state = 'FAILED';
+        result.error = errorMsg;
+        return;
+      }
+    }
+
     const steps = task.actionPlan ?? [];
     for (const step of steps) {
       const actionResult = await this.executeStep(project, task, step);
@@ -395,6 +438,48 @@ export class TaskExecutor {
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         logger.error('TaskExecutor', `Q1 workflow failed: ${errorMsg}`);
+        updateTaskState(project, task.id, 'FAILED');
+        result.state = 'FAILED';
+        result.error = errorMsg;
+        return;
+      }
+    }
+
+    if (task.requirementId.startsWith('Q2')) {
+      try {
+        const workflowResult = await executeLinkedInQ2Workflow(
+          project,
+          task.requirementId,
+          task,
+          this.mode,
+        );
+
+        if (workflowResult.action === 'ACTION_REQUIRED') {
+          updateTaskState(project, task.id, 'ACTION_REQUIRED');
+          result.state = 'ACTION_REQUIRED';
+          result.error = `USER_ACTION_REQUIRED: ${workflowResult.message}`;
+          return;
+        }
+
+        if (workflowResult.action === 'BLOCKED') {
+          updateTaskState(project, task.id, 'BLOCKED');
+          result.state = 'BLOCKED';
+          result.error = `BLOCKED: ${workflowResult.message}`;
+          return;
+        }
+
+        if (workflowResult.evidencePath) {
+          result.evidenceCaptured.push(workflowResult.evidencePath);
+        }
+
+        result.success = workflowResult.success;
+        if (!result.success) {
+          result.error = workflowResult.message;
+        }
+        return;
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        logger.error('TaskExecutor', `Q2 browser workflow failed: ${errorMsg}`);
         updateTaskState(project, task.id, 'FAILED');
         result.state = 'FAILED';
         result.error = errorMsg;
@@ -494,6 +579,45 @@ export class TaskExecutor {
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         logger.error('TaskExecutor', `Q1 content workflow failed: ${errorMsg}`);
+        updateTaskState(project, task.id, 'FAILED');
+        result.state = 'FAILED';
+        result.error = errorMsg;
+        return;
+      }
+    }
+
+    if (task.requirementId.startsWith('Q2')) {
+      try {
+        const workflowResult = await executeLinkedInQ2Workflow(
+          project,
+          task.requirementId,
+          task,
+          this.mode,
+        );
+
+        if (workflowResult.action === 'ACTION_REQUIRED') {
+          updateTaskState(project, task.id, 'ACTION_REQUIRED');
+          result.state = 'ACTION_REQUIRED';
+          result.error = `USER_ACTION_REQUIRED: ${workflowResult.message}`;
+          return;
+        }
+
+        if (workflowResult.action === 'BLOCKED') {
+          updateTaskState(project, task.id, 'BLOCKED');
+          result.state = 'BLOCKED';
+          result.error = `BLOCKED: ${workflowResult.message}`;
+          return;
+        }
+
+        if (workflowResult.evidencePath) {
+          result.evidenceCaptured.push(workflowResult.evidencePath);
+        }
+
+        result.success = workflowResult.success;
+        return;
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        logger.error('TaskExecutor', `Q2 content workflow failed: ${errorMsg}`);
         updateTaskState(project, task.id, 'FAILED');
         result.state = 'FAILED';
         result.error = errorMsg;
