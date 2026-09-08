@@ -25,7 +25,7 @@ function createTestProject(): Project {
   return project;
 }
 
-describe('Step 3 - Q1 Meta Workflows', () => {
+describe('Step 6 - Q1 Meta Executable Workflows', () => {
   let project: Project;
 
   beforeEach(() => {
@@ -59,60 +59,72 @@ describe('Step 3 - Q1 Meta Workflows', () => {
     expect(result.action).toBe('COMPLETED');
   });
 
-  it('should return DEMO for Q1-R2 page tasks without browser', async () => {
+  it('should return SIMULATED for Q1-R2 page tasks without browser', async () => {
     const task = createTask(project, 'Q1-R2', 'Create Facebook Business Page', 'Create page', []);
     const result = await executeFacebookQ1Workflow(project, 'Q1-R2', task, 'DEMO_MODE');
 
     expect(result.success).toBe(true);
-    expect(result.action).toBe('DEMO');
+    expect(result.action).toBe('SIMULATED');
+    expect(result.details).toBeDefined();
+    expect((result.details as Record<string, unknown>).simulated).toBe(true);
   });
 
-  it('should return DEMO for Q1-R3 advanced setup without browser', async () => {
+  it('should return SIMULATED for Q1-R3 advanced setup without browser', async () => {
     const task = createTask(project, 'Q1-R3', 'Access Professional Dashboard', 'Navigate to dashboard', []);
     const result = await executeFacebookQ1Workflow(project, 'Q1-R3', task, 'DEMO_MODE');
 
     expect(result.success).toBe(true);
-    expect(result.action).toBe('DEMO');
+    expect(result.action).toBe('SIMULATED');
+    expect(result.details).toBeDefined();
+    expect((result.details as Record<string, unknown>).simulated).toBe(true);
   });
 
-  it('should return DEMO for Q1-R4 business suite without browser', async () => {
+  it('should return SIMULATED for Q1-R4 business suite without browser', async () => {
     const task = createTask(project, 'Q1-R4', 'Access Meta Business Suite', 'Navigate to suite', []);
     const result = await executeFacebookQ1Workflow(project, 'Q1-R4', task, 'DEMO_MODE');
 
     expect(result.success).toBe(true);
-    expect(result.action).toBe('DEMO');
+    expect(result.action).toBe('SIMULATED');
+    expect(result.details).toBeDefined();
+    expect((result.details as Record<string, unknown>).simulated).toBe(true);
   });
 
-  it('should return DEMO for Q1-R5 campaign tasks without browser', async () => {
+  it('should return SIMULATED for Q1-R5 campaign tasks without browser', async () => {
     const task = createTask(project, 'Q1-R5', 'Create Facebook Ads Campaign', 'Create campaign', []);
     const result = await executeFacebookQ1Workflow(project, 'Q1-R5', task, 'DEMO_MODE');
 
     expect(result.success).toBe(true);
-    expect(result.action).toBe('DEMO');
+    expect(result.action).toBe('SIMULATED');
+    expect(result.details).toBeDefined();
+    expect((result.details as Record<string, unknown>).simulated).toBe(true);
   });
 
-  it('should return DEMO for Q1-R6 lead gen tasks without browser', async () => {
+  it('should return SIMULATED for Q1-R6 lead gen tasks without browser', async () => {
     const task = createTask(project, 'Q1-R6', 'Create Lead Generation Form', 'Set up form', []);
     const result = await executeFacebookQ1Workflow(project, 'Q1-R6', task, 'DEMO_MODE');
 
     expect(result.success).toBe(true);
-    expect(result.action).toBe('DEMO');
+    expect(result.action).toBe('SIMULATED');
+    expect(result.details).toBeDefined();
+    expect((result.details as Record<string, unknown>).simulated).toBe(true);
   });
 
-  it('should return DEMO for Q1-R7 A/B test tasks without browser', async () => {
+  it('should return SIMULATED for Q1-R7 A/B test tasks without browser', async () => {
     const task = createTask(project, 'Q1-R7', 'Create A/B Test', 'Set up test', []);
     const result = await executeFacebookQ1Workflow(project, 'Q1-R7', task, 'DEMO_MODE');
 
     expect(result.success).toBe(true);
-    expect(result.action).toBe('DEMO');
+    expect(result.action).toBe('SIMULATED');
+    expect(result.details).toBeDefined();
+    expect((result.details as Record<string, unknown>).simulated).toBe(true);
   });
 
-  it('should return DEMO for Q1-R8 evidence collection without browser', async () => {
+  it('should return ACTION_REQUIRED for Q1-R8 evidence collection without browser', async () => {
     const task = createTask(project, 'Q1-R8', 'Collect Facebook Evidence', 'Capture screenshots', []);
     const result = await executeFacebookQ1Workflow(project, 'Q1-R8', task, 'DEMO_MODE');
 
-    expect(result.success).toBe(true);
-    expect(result.action).toBe('DEMO');
+    expect(result.action).toBe('ACTION_REQUIRED');
+    expect(result.message).toContain('EVIDENCE VALIDATION');
   });
 
   it('should handle Q1-R5 ad set 1 with campaign existing', async () => {
@@ -120,7 +132,9 @@ describe('Step 3 - Q1 Meta Workflows', () => {
     const result = await executeFacebookQ1Workflow(project, 'Q1-R5', task, 'DEMO_MODE');
 
     expect(result.success).toBe(true);
-    expect(result.action).toBe('DEMO');
+    expect(result.action).toBe('SIMULATED');
+    expect(result.details).toBeDefined();
+    expect((result.details as Record<string, unknown>).simulated).toBe(true);
   });
 
   it('should handle Q1-R5 ad set 2 without campaign', async () => {
@@ -128,7 +142,7 @@ describe('Step 3 - Q1 Meta Workflows', () => {
     const result = await executeFacebookQ1Workflow(project, 'Q1-R5', task, 'DEMO_MODE');
 
     expect(result.success).toBe(false);
-    expect(result.action).toBe('DEMO');
+    expect(result.action).toBe('SIMULATED');
   });
 
   it('should handle Q1-R5 ad creative tasks without campaign', async () => {
@@ -136,7 +150,7 @@ describe('Step 3 - Q1 Meta Workflows', () => {
     const result = await executeFacebookQ1Workflow(project, 'Q1-R5', task, 'DEMO_MODE');
 
     expect(result.success).toBe(false);
-    expect(result.action).toBe('DEMO');
+    expect(result.action).toBe('SIMULATED');
   });
 
   it('should handle Q1-R6 follow-up message tasks', async () => {
@@ -144,7 +158,7 @@ describe('Step 3 - Q1 Meta Workflows', () => {
     const result = await executeFacebookQ1Workflow(project, 'Q1-R6', task, 'DEMO_MODE');
 
     expect(result.success).toBe(true);
-    expect(result.action).toBe('DEMO');
+    expect(result.action).toBe('SIMULATED');
   });
 
   it('should handle unknown requirement IDs gracefully', async () => {
@@ -165,7 +179,7 @@ describe('Step 3 - Q1 Meta Workflows', () => {
     expect(report.completedTasks + report.failedTasks + report.actionRequiredTasks + report.blockedTasks)
       .toBe(report.totalTasks);
     expect(report.failedTasks).toBe(0);
-    expect(report.actionRequiredTasks).toBe(1);
-    expect(report.completedTasks).toBe(23);
+    expect(report.actionRequiredTasks).toBe(2);
+    expect(report.completedTasks).toBe(22);
   }, 30000);
 });

@@ -1,3 +1,5 @@
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import type { Project, AgentMode, Task } from '../../types/index.js';
 import { getBrowserManager } from '../../core/browser-manager.js';
 import { captureEvidence } from '../../core/evidence-manager.js';
@@ -9,7 +11,6 @@ import {
   createAd,
   createLeadGenForm,
   createABTest,
-  generateContentCalendar,
   generateMetaBusinessSuite,
 } from './agent.js';
 import {
@@ -41,6 +42,8 @@ interface PageState {
     attributes: Record<string, string>;
   }>;
 }
+
+const MAX_RETRIES = 3;
 
 function getBusinessName(project: Project): string {
   return project.business?.name || project.name || 'Hunarmand Punjab';
@@ -133,6 +136,100 @@ function checkFacebookAuth(state: PageState): boolean {
     url.includes('facebook.com') && !url.includes('/login');
 }
 
+async function ensureFacebookAuth(): Promise<{ authenticated: boolean; state: PageState; screenshotPath: string | null }> {
+  const state = await observePage();
+  const authenticated = checkFacebookAuth(state);
+  const screenshotPath = authenticated ? null : await captureScreenshot(
+    {} as Project, '', '', 'auth-check', 'Auth Check', 'Facebook authentication check',
+  );
+  return { authenticated, state, screenshotPath };
+}
+
+async function actWithVerify(
+  project: Project,
+  requirementId: string,
+  taskId: string,
+  evidenceCode: string,
+  title: string,
+  actionFn: () => Promise<void>,
+  verifyChecks: Array<{ type: 'text_visible' | 'url_contains'; value: string }>,
+): Promise<{ success: boolean; screenshotPath: string | null; error?: string }> {
+  let lastError = '';
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const preState = await observePage();
+      await actionFn();
+      const postState = await observePage();
+      const postScreenshot = await captureScreenshot(
+        project, requirementId, taskId,
+        `${evidenceCode}-attempt${attempt}`, `${title} (attempt ${attempt})`,
+        `Action attempt ${attempt}: ${title}`,
+      );
+
+      const checks = verifyChecks.map(c => {
+        if (c.type === 'text_visible') return createTextVisibleCheck(c.value);
+        if (c.type === 'url_contains') return createUrlCheck(c.value);
+        return createTextVisibleCheck('');
+      });
+
+      const verification = await verifyPageState(checks);
+
+      if (verification.passed) {
+        return { success: true, screenshotPath: postScreenshot };
+      }
+
+      lastError = `Verification failed: ${verification.details}`;
+      logger.warn('Workflows', `${title} attempt ${attempt} verification failed: ${verification.details}`);
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+      logger.warn('Workflows', `${title} attempt ${attempt} error: ${lastError}`);
+    }
+
+    if (attempt < MAX_RETRIES) {
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+
+  const errorScreenshot = await captureScreenshot(
+    project, requirementId, taskId,
+    `${evidenceCode}-failed`, `${title} (failed)`,
+    `Action failed after ${MAX_RETRIES} attempts: ${lastError}`,
+  );
+
+  return { success: false, screenshotPath: errorScreenshot, error: lastError };
+}
+
+function validateEvidence(subdir: string): Array<{ code: string; title: string; status: 'VERIFIED' | 'MISSING'; files: string[] }> {
+  const expected = [
+    { code: 'Q1-01', title: 'Facebook Page' },
+    { code: 'Q1-02', title: 'Page Information' },
+    { code: 'Q1-03', title: 'CTA Configuration' },
+    { code: 'Q1-04', title: 'Page Settings' },
+    { code: 'Q1-05', title: 'Meta Business Suite' },
+    { code: 'Q1-06', title: 'Inbox Automation' },
+    { code: 'Q1-07', title: 'Content Planner' },
+    { code: 'Q1-08', title: 'Campaign' },
+    { code: 'Q1-09', title: 'Ad Set 1' },
+    { code: 'Q1-10', title: 'Ad Set 2' },
+    { code: 'Q1-11', title: 'Ad Creative' },
+    { code: 'Q1-12', title: 'Lead Form' },
+    { code: 'Q1-13', title: 'A/B Test' },
+  ];
+
+  try {
+    const evidenceDir = join(process.cwd(), 'evidence', subdir);
+    const files = readdirSync(evidenceDir).filter(f => f.endsWith('.png'));
+    return expected.map(item => ({
+      ...item,
+      status: files.some(f => f.includes(item.code)) ? 'VERIFIED' as const : 'MISSING' as const,
+      files: files.filter(f => f.includes(item.code)),
+    }));
+  } catch {
+    return expected.map(item => ({ ...item, status: 'MISSING' as const, files: [] }));
+  }
+}
+
 export async function executeFacebookQ1Workflow(
   project: Project,
   requirementId: string,
@@ -140,7 +237,16 @@ export async function executeFacebookQ1Workflow(
   mode: AgentMode,
 ): Promise<WorkflowResult> {
   if (mode === 'DEMO_MODE') {
-    return executeDemoWorkflow(project, requirementId, task);
+    return executeSimulatedWorkflow(project, requirementId, task);
+  }
+
+  const browser = getBrowserManager();
+  if (!browser.isLaunched()) {
+    return {
+      success: false,
+      action: 'ACTION_REQUIRED',
+      message: 'Browser not launched. Run with --mode LIVE_MODE to launch browser.',
+    };
   }
 
   switch (requirementId) {
@@ -157,7 +263,26 @@ export async function executeFacebookQ1Workflow(
   }
 }
 
-async function executeDemoWorkflow(
+async function executeSimulatedWorkflow(
+  project: Project,
+  requirementId: string,
+  task: Task,
+): Promise<WorkflowResult> {
+  switch (requirementId) {
+    case 'Q1-R1': return executeBusinessFoundation(project, task);
+    case 'Q1-R2': return simulatePageTasks(project, requirementId, task);
+    case 'Q1-R3': return simulatePageTasks(project, requirementId, task);
+    case 'Q1-R4': return simulatePageTasks(project, requirementId, task);
+    case 'Q1-R5': return simulateCampaignTasks(project, requirementId, task);
+    case 'Q1-R6': return simulatePageTasks(project, requirementId, task);
+    case 'Q1-R7': return simulatePageTasks(project, requirementId, task);
+    case 'Q1-R8': return simulateEvidenceCollection(project, task);
+    default:
+      return { success: false, action: 'BLOCKED', message: `Unknown requirement: ${requirementId}` };
+  }
+}
+
+async function simulatePageTasks(
   project: Project,
   requirementId: string,
   task: Task,
@@ -166,34 +291,222 @@ async function executeDemoWorkflow(
   const hasBrowser = browser.isLaunched();
 
   if (!hasBrowser) {
-    switch (requirementId) {
-      case 'Q1-R1': return executeBusinessFoundation(project, task);
-      case 'Q1-R2': return executeFacebookPage(project, task);
-      case 'Q1-R3': return executeAdvancedPageSetup(project, task);
-      case 'Q1-R4': return executeMetaBusinessSuite(project, task);
-      case 'Q1-R5': return executeCampaignWorkflow(project, task);
-      case 'Q1-R6': return executeLeadGeneration(project, task);
-      case 'Q1-R7': return executeABTest(project, task);
-      case 'Q1-R8': return executeEvidenceCollection(project, task);
-      default:
-        return { success: false, action: 'BLOCKED', message: `Unknown requirement: ${requirementId}` };
-    }
+    return {
+      success: true,
+      action: 'SIMULATED',
+      message: `[SIMULATED] ${task.title} — no browser available`,
+      details: {
+        simulated: true,
+        requirementId,
+        taskId: task.id,
+        note: 'Requires LIVE_MODE with browser to execute',
+      },
+    };
+  }
+
+  const auth = await ensureFacebookAuth();
+  if (!auth.authenticated) {
+    return {
+      success: false,
+      action: 'ACTION_REQUIRED',
+      message: [
+        'Facebook login is required.',
+        '',
+        'Please log into Facebook in the opened browser.',
+        'Do not provide your password or OTP to the agent.',
+        '',
+        'After login, resume the task.',
+      ].join('\n'),
+      evidencePath: auth.screenshotPath ?? undefined,
+    };
   }
 
   const state = await observePage();
   const evidence = await captureScreenshot(
     project, requirementId, task.id,
     `${requirementId.replace('-', '')}-${task.id.slice(0, 8)}`,
-    `Demo: ${task.title}`,
-    `Demo mode execution for ${task.title}`,
+    task.title,
+    `Browser execution: ${task.title}`,
   );
 
   return {
     success: true,
-    action: 'DEMO',
-    message: `Demo workflow completed for: ${task.title}`,
+    action: hasText(state, 'Home') || hasText(state, 'Settings') || hasText(state, 'Page') ? 'COMPLETED' : 'SIMULATED',
+    message: `${task.title} — browser observed`,
     evidencePath: evidence ?? undefined,
     details: { url: state.url, title: state.title },
+  };
+}
+
+async function simulateCampaignTasks(
+  project: Project,
+  requirementId: string,
+  task: Task,
+): Promise<WorkflowResult> {
+  const browser = getBrowserManager();
+  const hasBrowser = browser.isLaunched();
+
+  if (!hasBrowser) {
+    const title = task.title.toLowerCase();
+
+    if (title.includes('campaign') && !title.includes('ad set') && !title.includes('ad ')) {
+      const strategy = project.campaigns[0];
+      const campaignName = strategy?.name || `${getBusinessName(project)} Campaign`;
+      const campaign = createFacebookCampaign(project, campaignName, 'LEAD_GENERATION', 'PKR 50,000');
+      return {
+        success: true,
+        action: 'SIMULATED',
+        message: `[SIMULATED] Campaign "${campaignName}" created — no browser available`,
+        details: { simulated: true, campaignId: campaign.id, name: campaignName },
+      };
+    }
+
+    if (title.includes('ad set 1') || title.includes('interest')) {
+      let campaign = project.campaigns[project.campaigns.length - 1];
+      if (!campaign) {
+        const campaignName = `${getBusinessName(project)} Campaign`;
+        campaign = createFacebookCampaign(project, campaignName, 'LEAD_GENERATION', 'PKR 50,000');
+      }
+      const adSet = createAdSet(project, campaign.id, 'Interest-Based Audience', 'PKR 25,000');
+      if (adSet) {
+        adSet.audience.interests = ['Digital Marketing', 'Business Growth', 'Social Media Marketing'];
+        adSet.audience.locations = ['Pakistan', 'Lahore', 'Karachi', 'Islamabad'];
+      }
+      return {
+        success: !!adSet,
+        action: 'SIMULATED',
+        message: `[SIMULATED] Ad Set 1 (Interest-Based) created — no browser available`,
+        details: { simulated: true, adSetId: adSet?.id, targeting: adSet?.audience },
+      };
+    }
+
+    if (title.includes('ad set 2') || title.includes('lookalike')) {
+      const campaign = project.campaigns[project.campaigns.length - 1];
+      if (!campaign) {
+        return { success: false, action: 'SIMULATED', message: `[SIMULATED] Ad Set 2 requires a campaign first` };
+      }
+      const adSet = createAdSet(project, campaign.id, 'Lookalike Audience', 'PKR 25,000');
+      if (adSet) {
+        adSet.audience.demographics = ['Business Owners', 'Marketing Managers'];
+        adSet.audience.behaviors = ['Engaged Shoppers', 'Small Business Owners'];
+        adSet.audience.locations = ['Pakistan'];
+      }
+      return {
+        success: !!adSet,
+        action: 'SIMULATED',
+        message: `[SIMULATED] Ad Set 2 (Lookalike) created — no browser available`,
+        details: { simulated: true, adSetId: adSet?.id, targeting: adSet?.audience },
+      };
+    }
+
+    if (title.includes('ad ') || title.includes('creative')) {
+      const campaign = project.campaigns[project.campaigns.length - 1];
+      if (!campaign || !campaign.adSets[0]) {
+        return { success: false, action: 'SIMULATED', message: `[SIMULATED] Ads require a campaign with ad sets` };
+      }
+      const businessName = getBusinessName(project);
+      const ad = createAd(project, campaign.id, campaign.adSets[0].id, {
+        name: `${businessName} - Lead Ad`,
+        headline: 'Grow Your Business with Digital Marketing',
+        primaryText: `Expert digital marketing services to help ${businessName} reach more customers online.`,
+        callToAction: 'Learn More',
+        creativeType: 'Image',
+      });
+      return {
+        success: !!ad,
+        action: 'SIMULATED',
+        message: `[SIMULATED] Ad creative "${ad?.headline}" created — no browser available`,
+        details: { simulated: true, adId: ad?.id, headline: ad?.headline },
+      };
+    }
+
+    return { success: true, action: 'SIMULATED', message: `[SIMULATED] ${task.title} — no browser available`, details: { simulated: true } };
+  }
+
+  const auth = await ensureFacebookAuth();
+  if (!auth.authenticated) {
+    return {
+      success: false,
+      action: 'ACTION_REQUIRED',
+      message: 'Facebook login required to access Ads Manager',
+      evidencePath: auth.screenshotPath ?? undefined,
+    };
+  }
+
+  return simulatePageTasks(project, requirementId, task);
+}
+
+async function simulateEvidenceCollection(project: Project, task: Task): Promise<WorkflowResult> {
+  const browser = getBrowserManager();
+  const hasBrowser = browser.isLaunched();
+
+  if (!hasBrowser) {
+    const validation = validateEvidence('q1');
+    const verified = validation.filter(e => e.status === 'VERIFIED');
+    const missing = validation.filter(e => e.status === 'MISSING');
+
+    if (missing.length > 0) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: [
+          `[EVIDENCE VALIDATION] ${verified.length}/${validation.length} evidence items verified.`,
+          '',
+          'MISSING evidence:',
+          ...missing.map(e => `  - ${e.code}: ${e.title}`),
+          '',
+          'Please capture the missing screenshots in the browser, then resume.',
+        ].join('\n'),
+        details: {
+          verified: verified.map(e => e.code),
+          missing: missing.map(e => ({ code: e.code, title: e.title })),
+          total: validation.length,
+        },
+      };
+    }
+
+    return {
+      success: true,
+      action: 'COMPLETED',
+      message: `[EVIDENCE VALIDATION] All ${verified.length}/${validation.length} evidence items verified.`,
+      details: {
+        verified: verified.map(e => e.code),
+        total: validation.length,
+      },
+    };
+  }
+
+  const evidenceItems = [
+    { code: 'Q1-01', title: 'Facebook Page', reqId: 'Q1-R2' },
+    { code: 'Q1-02', title: 'Page Information', reqId: 'Q1-R2' },
+    { code: 'Q1-03', title: 'CTA Configuration', reqId: 'Q1-R2' },
+    { code: 'Q1-04', title: 'Page Settings', reqId: 'Q1-R3' },
+    { code: 'Q1-05', title: 'Meta Business Suite', reqId: 'Q1-R4' },
+    { code: 'Q1-06', title: 'Inbox Automation', reqId: 'Q1-R4' },
+    { code: 'Q1-07', title: 'Content Planner', reqId: 'Q1-R4' },
+    { code: 'Q1-08', title: 'Campaign', reqId: 'Q1-R5' },
+    { code: 'Q1-09', title: 'Ad Set 1', reqId: 'Q1-R5' },
+    { code: 'Q1-10', title: 'Ad Set 2', reqId: 'Q1-R5' },
+    { code: 'Q1-11', title: 'Ad Creative', reqId: 'Q1-R5' },
+    { code: 'Q1-12', title: 'Lead Form', reqId: 'Q1-R6' },
+    { code: 'Q1-13', title: 'A/B Test', reqId: 'Q1-R7' },
+  ];
+
+  const capturedPaths: string[] = [];
+  for (const item of evidenceItems) {
+    const path = await captureScreenshot(
+      project, item.reqId, task.id,
+      item.code, item.title,
+      `Evidence collection: ${item.title}`,
+    );
+    if (path) capturedPaths.push(path);
+  }
+
+  return {
+    success: capturedPaths.length > 0,
+    action: capturedPaths.length > 0 ? 'COMPLETED' : 'FAILED',
+    message: `Evidence collection: ${capturedPaths.length}/${evidenceItems.length} screenshots captured`,
+    details: { captured: capturedPaths.length, total: evidenceItems.length },
   };
 }
 
@@ -297,10 +610,9 @@ async function executeFacebookPage(
 ): Promise<WorkflowResult> {
   const title = task.title.toLowerCase();
   const browser = getBrowserManager();
-  const hasBrowser = browser.isLaunched();
 
   if (title.includes('login')) {
-    if (!hasBrowser) {
+    if (!browser.isLaunched()) {
       return {
         success: false,
         action: 'ACTION_REQUIRED',
@@ -339,12 +651,21 @@ async function executeFacebookPage(
   }
 
   if (title.includes('create') && title.includes('page')) {
-    if (!hasBrowser) {
-      const businessName = getBusinessName(project);
+    if (!browser.isLaunched()) {
       return {
-        success: true,
-        action: 'DEMO',
-        message: `Demo: Facebook page "${businessName}" creation simulated`,
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Browser not launched. Run with --mode LIVE_MODE to create Facebook page.',
+      };
+    }
+
+    const auth = await ensureFacebookAuth();
+    if (!auth.authenticated) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Facebook login required to create a page',
+        evidencePath: auth.screenshotPath ?? undefined,
       };
     }
 
@@ -354,34 +675,16 @@ async function executeFacebookPage(
       'Facebook Page Creation', 'Page creation form',
     );
 
-    if (!checkFacebookAuth(state)) {
-      return {
-        success: false,
-        action: 'ACTION_REQUIRED',
-        message: 'Facebook login required to create a page',
-        evidencePath: evidence ?? undefined,
-      };
-    }
-
     if (hasText(state, 'Create a Page') || hasText(state, 'Page name')) {
       const businessName = getBusinessName(project);
       const page = findInputByLabel(state, 'Page name') || findInputByLabel(state, 'page name');
       const category = findInputByLabel(state, 'Category') || findInputByLabel(state, 'category');
 
-      if (page) {
-        const browserMgr = getBrowserManager();
-        await browserMgr.fill(page, businessName);
-      }
-      if (category) {
-        const browserMgr = getBrowserManager();
-        await browserMgr.fill(category, getBusinessIndustry(project));
-      }
+      if (page) await getBrowserManager().fill(page, businessName);
+      if (category) await getBrowserManager().fill(category, getBusinessIndustry(project));
 
       const createBtn = findClickableByText(state, 'Create Page') || findClickableByText(state, 'Get Started');
-      if (createBtn) {
-        const browserMgr = getBrowserManager();
-        await browserMgr.click(createBtn);
-      }
+      if (createBtn) await getBrowserManager().click(createBtn);
 
       const afterState = await observePage();
       const afterEvidence = await captureScreenshot(
@@ -400,18 +703,28 @@ async function executeFacebookPage(
 
     return {
       success: true,
-      action: 'DEMO',
+      action: 'SIMULATED',
       message: 'Page creation form observed - UI may vary',
       evidencePath: evidence ?? undefined,
     };
   }
 
   if (title.includes('profile') || title.includes('configure')) {
-    if (!hasBrowser) {
+    if (!browser.isLaunched()) {
       return {
-        success: true,
-        action: 'DEMO',
-        message: 'Demo: Page profile configuration simulated',
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Browser not launched. Run with --mode LIVE_MODE to configure page profile.',
+      };
+    }
+
+    const auth = await ensureFacebookAuth();
+    if (!auth.authenticated) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Facebook login required to configure page profile',
+        evidencePath: auth.screenshotPath ?? undefined,
       };
     }
 
@@ -421,29 +734,30 @@ async function executeFacebookPage(
       'Page Configuration', 'Page profile configuration',
     );
 
-    if (hasText(state, 'About') || hasText(state, 'Edit')) {
-      return {
-        success: true,
-        action: 'COMPLETED',
-        message: 'Page profile configuration screen accessed',
-        evidencePath: evidence ?? undefined,
-      };
-    }
-
     return {
       success: true,
-      action: 'DEMO',
-      message: 'Page profile configuration observed',
+      action: hasText(state, 'About') || hasText(state, 'Edit') ? 'COMPLETED' : 'SIMULATED',
+      message: 'Page profile configuration accessed',
       evidencePath: evidence ?? undefined,
     };
   }
 
   if (title.includes('cta')) {
-    if (!hasBrowser) {
+    if (!browser.isLaunched()) {
       return {
-        success: true,
-        action: 'DEMO',
-        message: 'Demo: CTA button configuration simulated',
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Browser not launched. Run with --mode LIVE_MODE to configure CTA.',
+      };
+    }
+
+    const auth = await ensureFacebookAuth();
+    if (!auth.authenticated) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Facebook login required to configure CTA',
+        evidencePath: auth.screenshotPath ?? undefined,
       };
     }
 
@@ -455,18 +769,28 @@ async function executeFacebookPage(
 
     return {
       success: true,
-      action: hasText(state, 'Call to Action') || hasText(state, 'CTA') ? 'COMPLETED' : 'DEMO',
+      action: hasText(state, 'Call to Action') || hasText(state, 'CTA') ? 'COMPLETED' : 'SIMULATED',
       message: 'CTA button configuration reviewed',
       evidencePath: evidence ?? undefined,
     };
   }
 
   if (title.includes('settings')) {
-    if (!hasBrowser) {
+    if (!browser.isLaunched()) {
       return {
-        success: true,
-        action: 'DEMO',
-        message: 'Demo: Page settings configuration simulated',
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Browser not launched. Run with --mode LIVE_MODE to configure settings.',
+      };
+    }
+
+    const auth = await ensureFacebookAuth();
+    if (!auth.authenticated) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Facebook login required to configure settings',
+        evidencePath: auth.screenshotPath ?? undefined,
       };
     }
 
@@ -478,7 +802,7 @@ async function executeFacebookPage(
 
     return {
       success: true,
-      action: hasText(state, 'Settings') || hasText(state, 'Page settings') ? 'COMPLETED' : 'DEMO',
+      action: hasText(state, 'Settings') || hasText(state, 'Page settings') ? 'COMPLETED' : 'SIMULATED',
       message: 'Page settings reviewed',
       evidencePath: evidence ?? undefined,
     };
@@ -493,14 +817,23 @@ async function executeAdvancedPageSetup(
 ): Promise<WorkflowResult> {
   const title = task.title.toLowerCase();
   const browser = getBrowserManager();
-  const hasBrowser = browser.isLaunched();
 
   if (title.includes('professional') || title.includes('dashboard')) {
-    if (!hasBrowser) {
+    if (!browser.isLaunched()) {
       return {
-        success: true,
-        action: 'DEMO',
-        message: 'Demo: Professional Dashboard access simulated',
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Browser not launched. Run with --mode LIVE_MODE to access Professional Dashboard.',
+      };
+    }
+
+    const auth = await ensureFacebookAuth();
+    if (!auth.authenticated) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Facebook login required to access Professional Dashboard',
+        evidencePath: auth.screenshotPath ?? undefined,
       };
     }
 
@@ -510,29 +843,30 @@ async function executeAdvancedPageSetup(
       'Professional Dashboard', 'Professional dashboard access',
     );
 
-    if (!checkFacebookAuth(state)) {
-      return {
-        success: false,
-        action: 'ACTION_REQUIRED',
-        message: 'Facebook login required to access Professional Dashboard',
-        evidencePath: evidence ?? undefined,
-      };
-    }
-
     return {
       success: true,
-      action: hasText(state, 'Professional') || hasText(state, 'Dashboard') ? 'COMPLETED' : 'DEMO',
+      action: hasText(state, 'Professional') || hasText(state, 'Dashboard') ? 'COMPLETED' : 'SIMULATED',
       message: 'Professional Dashboard accessed',
       evidencePath: evidence ?? undefined,
     };
   }
 
   if (title.includes('access') && title.includes('roles')) {
-    if (!hasBrowser) {
+    if (!browser.isLaunched()) {
       return {
-        success: true,
-        action: 'DEMO',
-        message: 'Demo: Page access roles configuration simulated',
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Browser not launched. Run with --mode LIVE_MODE to configure page roles.',
+      };
+    }
+
+    const auth = await ensureFacebookAuth();
+    if (!auth.authenticated) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Facebook login required to configure page roles',
+        evidencePath: auth.screenshotPath ?? undefined,
       };
     }
 
@@ -544,18 +878,28 @@ async function executeAdvancedPageSetup(
 
     return {
       success: true,
-      action: hasText(state, 'Page access') || hasText(state, 'Roles') ? 'COMPLETED' : 'DEMO',
+      action: hasText(state, 'Page access') || hasText(state, 'Roles') ? 'COMPLETED' : 'SIMULATED',
       message: 'Page access roles configuration reviewed',
       evidencePath: evidence ?? undefined,
     };
   }
 
   if (title.includes('instagram') || title.includes('whatsapp')) {
-    if (!hasBrowser) {
+    if (!browser.isLaunched()) {
       return {
-        success: true,
-        action: 'DEMO',
-        message: 'Demo: Linked accounts configuration simulated',
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Browser not launched. Run with --mode LIVE_MODE to configure linked accounts.',
+      };
+    }
+
+    const auth = await ensureFacebookAuth();
+    if (!auth.authenticated) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Facebook login required to configure linked accounts',
+        evidencePath: auth.screenshotPath ?? undefined,
       };
     }
 
@@ -567,18 +911,28 @@ async function executeAdvancedPageSetup(
 
     return {
       success: true,
-      action: 'DEMO',
+      action: 'SIMULATED',
       message: 'Linked accounts configuration reviewed - manual linking may be required',
       evidencePath: evidence ?? undefined,
     };
   }
 
   if (title.includes('audience') || title.includes('controls')) {
-    if (!hasBrowser) {
+    if (!browser.isLaunched()) {
       return {
-        success: true,
-        action: 'DEMO',
-        message: 'Demo: Audience controls configuration simulated',
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Browser not launched. Run with --mode LIVE_MODE to configure audience controls.',
+      };
+    }
+
+    const auth = await ensureFacebookAuth();
+    if (!auth.authenticated) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Facebook login required to configure audience controls',
+        evidencePath: auth.screenshotPath ?? undefined,
       };
     }
 
@@ -590,7 +944,7 @@ async function executeAdvancedPageSetup(
 
     return {
       success: true,
-      action: hasText(state, 'Audience') || hasText(state, 'Moderation') ? 'COMPLETED' : 'DEMO',
+      action: hasText(state, 'Audience') || hasText(state, 'Moderation') ? 'COMPLETED' : 'SIMULATED',
       message: 'Audience controls reviewed',
       evidencePath: evidence ?? undefined,
     };
@@ -605,14 +959,23 @@ async function executeMetaBusinessSuite(
 ): Promise<WorkflowResult> {
   const title = task.title.toLowerCase();
   const browser = getBrowserManager();
-  const hasBrowser = browser.isLaunched();
 
   if (title.includes('access') || title.includes('suite')) {
-    if (!hasBrowser) {
+    if (!browser.isLaunched()) {
       return {
-        success: true,
-        action: 'DEMO',
-        message: 'Demo: Meta Business Suite access simulated',
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Browser not launched. Run with --mode LIVE_MODE to access Meta Business Suite.',
+      };
+    }
+
+    const auth = await ensureFacebookAuth();
+    if (!auth.authenticated) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Facebook login required to access Meta Business Suite',
+        evidencePath: auth.screenshotPath ?? undefined,
       };
     }
 
@@ -622,31 +985,30 @@ async function executeMetaBusinessSuite(
       'Meta Business Suite', 'Meta Business Suite access',
     );
 
-    if (!checkFacebookAuth(state)) {
-      return {
-        success: false,
-        action: 'ACTION_REQUIRED',
-        message: 'Facebook login required to access Meta Business Suite',
-        evidencePath: evidence ?? undefined,
-      };
-    }
-
     return {
       success: true,
-      action: hasText(state, 'Business Suite') || hasText(state, 'Business Manager') ? 'COMPLETED' : 'DEMO',
+      action: hasText(state, 'Business Suite') || hasText(state, 'Business Manager') ? 'COMPLETED' : 'SIMULATED',
       message: 'Meta Business Suite accessed',
       evidencePath: evidence ?? undefined,
     };
   }
 
   if (title.includes('inbox') || title.includes('automation')) {
-    if (!hasBrowser) {
-      const suiteConfig = generateMetaBusinessSuite();
+    if (!browser.isLaunched()) {
       return {
-        success: true,
-        action: 'DEMO',
-        message: `Demo: Inbox automation configured: auto-reply "${suiteConfig.autoReplyMessage.slice(0, 50)}..."`,
-        details: { ...suiteConfig },
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Browser not launched. Run with --mode LIVE_MODE to configure inbox automation.',
+      };
+    }
+
+    const auth = await ensureFacebookAuth();
+    if (!auth.authenticated) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Facebook login required to configure inbox automation',
+        evidencePath: auth.screenshotPath ?? undefined,
       };
     }
 
@@ -659,7 +1021,7 @@ async function executeMetaBusinessSuite(
     const suiteConfig = generateMetaBusinessSuite();
     return {
       success: true,
-      action: hasText(state, 'Inbox') || hasText(state, 'Automation') ? 'COMPLETED' : 'DEMO',
+      action: hasText(state, 'Inbox') || hasText(state, 'Automation') ? 'COMPLETED' : 'SIMULATED',
       message: `Inbox automation configured: auto-reply "${suiteConfig.autoReplyMessage.slice(0, 50)}..."`,
       evidencePath: evidence ?? undefined,
       details: { ...suiteConfig },
@@ -667,13 +1029,21 @@ async function executeMetaBusinessSuite(
   }
 
   if (title.includes('planner') || title.includes('content')) {
-    if (!hasBrowser) {
-      const calendar = generateContentCalendarModule(project, 'Facebook', 7);
+    if (!browser.isLaunched()) {
       return {
-        success: calendar.length > 0,
-        action: 'DEMO',
-        message: `Demo: Content planner set up with ${calendar.length} posts`,
-        details: { postCount: calendar.length },
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Browser not launched. Run with --mode LIVE_MODE to configure content planner.',
+      };
+    }
+
+    const auth = await ensureFacebookAuth();
+    if (!auth.authenticated) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Facebook login required to configure content planner',
+        evidencePath: auth.screenshotPath ?? undefined,
       };
     }
 
@@ -686,7 +1056,7 @@ async function executeMetaBusinessSuite(
     const calendar = generateContentCalendarModule(project, 'Facebook', 7);
     return {
       success: calendar.length > 0,
-      action: hasText(state, 'Planner') || hasText(state, 'Content') ? 'COMPLETED' : 'DEMO',
+      action: hasText(state, 'Planner') || hasText(state, 'Content') ? 'COMPLETED' : 'SIMULATED',
       message: `Content planner set up with ${calendar.length} posts`,
       evidencePath: evidence ?? undefined,
       details: { postCount: calendar.length },
@@ -702,18 +1072,23 @@ async function executeCampaignWorkflow(
 ): Promise<WorkflowResult> {
   const title = task.title.toLowerCase();
   const browser = getBrowserManager();
-  const hasBrowser = browser.isLaunched();
 
   if (title.includes('campaign') && !title.includes('ad set') && !title.includes('ad ')) {
-    if (!hasBrowser) {
-      const strategy = project.campaigns[0];
-      const campaignName = strategy?.name || `${getBusinessName(project)} Campaign`;
-      const campaign = createFacebookCampaign(project, campaignName, 'LEAD_GENERATION', 'PKR 50,000');
+    if (!browser.isLaunched()) {
       return {
-        success: true,
-        action: 'DEMO',
-        message: `Demo: Campaign "${campaignName}" created (data structure)`,
-        details: { campaignId: campaign.id, name: campaignName },
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Browser not launched. Run with --mode LIVE_MODE to create campaign.',
+      };
+    }
+
+    const auth = await ensureFacebookAuth();
+    if (!auth.authenticated) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Facebook login required to access Ads Manager',
+        evidencePath: auth.screenshotPath ?? undefined,
       };
     }
 
@@ -723,28 +1098,16 @@ async function executeCampaignWorkflow(
       'Campaign Setup', 'Facebook Ads Manager campaign creation',
     );
 
-    if (!checkFacebookAuth(state)) {
-      return {
-        success: false,
-        action: 'ACTION_REQUIRED',
-        message: 'Facebook login required to access Ads Manager',
-        evidencePath: evidence ?? undefined,
-      };
-    }
-
     const strategy = project.campaigns[0];
     const campaignName = strategy?.name || `${getBusinessName(project)} Campaign`;
     const campaign = createFacebookCampaign(project, campaignName, 'LEAD_GENERATION', 'PKR 50,000');
 
     const createBtn = findClickableByText(state, 'Create') || findClickableByText(state, '+ Create');
-    if (createBtn) {
-      const browserMgr = getBrowserManager();
-      await browserMgr.click(createBtn);
-    }
+    if (createBtn) await getBrowserManager().click(createBtn);
 
     return {
       success: true,
-      action: hasText(state, 'Ads Manager') || hasText(state, 'Campaign') ? 'COMPLETED' : 'DEMO',
+      action: hasText(state, 'Ads Manager') || hasText(state, 'Campaign') ? 'COMPLETED' : 'SIMULATED',
       message: `Campaign "${campaignName}" created in Ads Manager`,
       evidencePath: evidence ?? undefined,
       details: { campaignId: campaign.id, name: campaignName },
@@ -752,34 +1115,30 @@ async function executeCampaignWorkflow(
   }
 
   if (title.includes('ad set 1') || title.includes('interest')) {
-    const campaign = project.campaigns[project.campaigns.length - 1];
-    if (!campaign) {
-      const campaignName = `${getBusinessName(project)} Campaign`;
-      const newCampaign = createFacebookCampaign(project, campaignName, 'LEAD_GENERATION', 'PKR 50,000');
-      const adSet = createAdSet(project, newCampaign.id, 'Interest-Based Audience', 'PKR 25,000');
-      if (adSet) {
-        adSet.audience.interests = ['Digital Marketing', 'Business Growth', 'Social Media Marketing'];
-        adSet.audience.locations = ['Pakistan', 'Lahore', 'Karachi', 'Islamabad'];
-      }
+    if (!browser.isLaunched()) {
       return {
-        success: !!adSet,
-        action: 'DEMO',
-        message: 'Demo: Ad Set 1 (Interest-Based) created with targeting',
-        details: { adSetId: adSet?.id, targeting: adSet?.audience },
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Browser not launched. Run with --mode LIVE_MODE to create ad sets.',
       };
     }
 
-    if (!hasBrowser) {
-      const adSet = createAdSet(project, campaign.id, 'Interest-Based Audience', 'PKR 25,000');
-      if (adSet) {
-        adSet.audience.interests = ['Digital Marketing', 'Business Growth', 'Social Media Marketing'];
-        adSet.audience.locations = ['Pakistan', 'Lahore', 'Karachi', 'Islamabad'];
-      }
+    const auth = await ensureFacebookAuth();
+    if (!auth.authenticated) {
       return {
-        success: !!adSet,
-        action: 'DEMO',
-        message: 'Demo: Ad Set 1 (Interest-Based) created with targeting',
-        details: { adSetId: adSet?.id, targeting: adSet?.audience },
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Facebook login required to create ad sets',
+        evidencePath: auth.screenshotPath ?? undefined,
+      };
+    }
+
+    const campaign = project.campaigns[project.campaigns.length - 1];
+    if (!campaign) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'No campaign found. Create a campaign first.',
       };
     }
 
@@ -805,23 +1164,30 @@ async function executeCampaignWorkflow(
   }
 
   if (title.includes('ad set 2') || title.includes('lookalike')) {
-    const campaign = project.campaigns[project.campaigns.length - 1];
-    if (!campaign) {
-      return { success: false, action: 'DEMO', message: 'Demo: Ad Set 2 requires a campaign first' };
+    if (!browser.isLaunched()) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Browser not launched. Run with --mode LIVE_MODE to create ad sets.',
+      };
     }
 
-    if (!hasBrowser) {
-      const adSet = createAdSet(project, campaign.id, 'Lookalike Audience', 'PKR 25,000');
-      if (adSet) {
-        adSet.audience.demographics = ['Business Owners', 'Marketing Managers'];
-        adSet.audience.behaviors = ['Engaged Shoppers', 'Small Business Owners'];
-        adSet.audience.locations = ['Pakistan'];
-      }
+    const auth = await ensureFacebookAuth();
+    if (!auth.authenticated) {
       return {
-        success: !!adSet,
-        action: 'DEMO',
-        message: 'Demo: Ad Set 2 (Lookalike) created with demographics',
-        details: { adSetId: adSet?.id, targeting: adSet?.audience },
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Facebook login required to create ad sets',
+        evidencePath: auth.screenshotPath ?? undefined,
+      };
+    }
+
+    const campaign = project.campaigns[project.campaigns.length - 1];
+    if (!campaign) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'No campaign found. Create a campaign first.',
       };
     }
 
@@ -848,25 +1214,30 @@ async function executeCampaignWorkflow(
   }
 
   if (title.includes('ad ') || title.includes('creative')) {
-    const campaign = project.campaigns[project.campaigns.length - 1];
-    if (!campaign || !campaign.adSets[0]) {
-      return { success: false, action: 'DEMO', message: 'Demo: Ads require a campaign with ad sets' };
+    if (!browser.isLaunched()) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Browser not launched. Run with --mode LIVE_MODE to create ad creatives.',
+      };
     }
 
-    if (!hasBrowser) {
-      const businessName = getBusinessName(project);
-      const ad = createAd(project, campaign.id, campaign.adSets[0].id, {
-        name: `${businessName} - Lead Ad`,
-        headline: 'Grow Your Business with Digital Marketing',
-        primaryText: `Expert digital marketing services to help ${businessName} reach more customers online.`,
-        callToAction: 'Learn More',
-        creativeType: 'Image',
-      });
+    const auth = await ensureFacebookAuth();
+    if (!auth.authenticated) {
       return {
-        success: !!ad,
-        action: 'DEMO',
-        message: `Demo: Ad creative "${ad?.headline}" created`,
-        details: { adId: ad?.id, headline: ad?.headline },
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Facebook login required to create ad creatives',
+        evidencePath: auth.screenshotPath ?? undefined,
+      };
+    }
+
+    const campaign = project.campaigns[project.campaigns.length - 1];
+    if (!campaign || !campaign.adSets[0]) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'No campaign with ad sets found. Create campaign and ad sets first.',
       };
     }
 
@@ -913,7 +1284,6 @@ async function executeLeadGeneration(
 ): Promise<WorkflowResult> {
   const title = task.title.toLowerCase();
   const browser = getBrowserManager();
-  const hasBrowser = browser.isLaunched();
 
   if (title.includes('lead') && title.includes('form')) {
     const businessName = getBusinessName(project);
@@ -925,12 +1295,21 @@ async function executeLeadGeneration(
       'Sign Up',
     );
 
-    if (!hasBrowser) {
+    if (!browser.isLaunched()) {
       return {
-        success: true,
-        action: 'DEMO',
-        message: `Demo: Lead form "${form.name}" created with ${form.fields.length} fields`,
-        details: { formId: form.id, fields: form.fields },
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Browser not launched. Run with --mode LIVE_MODE to create lead form.',
+      };
+    }
+
+    const auth = await ensureFacebookAuth();
+    if (!auth.authenticated) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Facebook login required to create lead form',
+        evidencePath: auth.screenshotPath ?? undefined,
       };
     }
 
@@ -949,11 +1328,21 @@ async function executeLeadGeneration(
   }
 
   if (title.includes('follow-up') || title.includes('follow up')) {
-    if (!hasBrowser) {
+    if (!browser.isLaunched()) {
       return {
-        success: true,
-        action: 'DEMO',
-        message: 'Demo: Follow-up message configured for lead form',
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Browser not launched. Run with --mode LIVE_MODE to configure follow-up.',
+      };
+    }
+
+    const auth = await ensureFacebookAuth();
+    if (!auth.authenticated) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: 'Facebook login required to configure follow-up',
+        evidencePath: auth.screenshotPath ?? undefined,
       };
     }
 
@@ -979,7 +1368,6 @@ async function executeABTest(
   task: Task,
 ): Promise<WorkflowResult> {
   const browser = getBrowserManager();
-  const hasBrowser = browser.isLaunched();
 
   const test = createABTest(
     'Headline Test',
@@ -988,17 +1376,21 @@ async function executeABTest(
     'Start Growing Your Business Today',
   );
 
-  if (!hasBrowser) {
+  if (!browser.isLaunched()) {
     return {
-      success: true,
-      action: 'DEMO',
-      message: `Demo: A/B test "${test.name}" created: "${test.variantA}" vs "${test.variantB}"`,
-      details: {
-        testId: test.id,
-        type: test.type,
-        variantA: test.variantA,
-        variantB: test.variantB,
-      },
+      success: false,
+      action: 'ACTION_REQUIRED',
+      message: 'Browser not launched. Run with --mode LIVE_MODE to create A/B test.',
+    };
+  }
+
+  const auth = await ensureFacebookAuth();
+  if (!auth.authenticated) {
+    return {
+      success: false,
+      action: 'ACTION_REQUIRED',
+      message: 'Facebook login required to create A/B test',
+      evidencePath: auth.screenshotPath ?? undefined,
     };
   }
 
@@ -1029,13 +1421,40 @@ async function executeEvidenceCollection(
   task: Task,
 ): Promise<WorkflowResult> {
   const browser = getBrowserManager();
-  const hasBrowser = browser.isLaunched();
 
-  if (!hasBrowser) {
+  if (!browser.isLaunched()) {
+    const validation = validateEvidence('q1');
+    const verified = validation.filter(e => e.status === 'VERIFIED');
+    const missing = validation.filter(e => e.status === 'MISSING');
+
+    if (missing.length > 0) {
+      return {
+        success: false,
+        action: 'ACTION_REQUIRED',
+        message: [
+          `[EVIDENCE VALIDATION] ${verified.length}/${validation.length} evidence items verified.`,
+          '',
+          'MISSING evidence:',
+          ...missing.map(e => `  - ${e.code}: ${e.title}`),
+          '',
+          'Please capture the missing screenshots in the browser, then resume.',
+        ].join('\n'),
+        details: {
+          verified: verified.map(e => e.code),
+          missing: missing.map(e => ({ code: e.code, title: e.title })),
+          total: validation.length,
+        },
+      };
+    }
+
     return {
       success: true,
-      action: 'DEMO',
-      message: 'Demo: Evidence collection simulated (no browser for screenshots)',
+      action: 'COMPLETED',
+      message: `[EVIDENCE VALIDATION] All ${verified.length}/${validation.length} evidence items verified.`,
+      details: {
+        verified: verified.map(e => e.code),
+        total: validation.length,
+      },
     };
   }
 
@@ -1067,7 +1486,7 @@ async function executeEvidenceCollection(
 
   return {
     success: capturedPaths.length > 0,
-    action: capturedPaths.length > 0 ? 'COMPLETED' : 'DEMO',
+    action: capturedPaths.length > 0 ? 'COMPLETED' : 'FAILED',
     message: `Evidence collection: ${capturedPaths.length}/${evidenceItems.length} screenshots captured`,
     details: { captured: capturedPaths.length, total: evidenceItems.length },
   };
