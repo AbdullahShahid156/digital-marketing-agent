@@ -4,14 +4,16 @@ import { captureEvidence } from '../../core/evidence-manager.js';
 import { verifyPageState, createTextVisibleCheck, createUrlCheck } from '../../core/verification-engine.js';
 import { logger } from '../../core/logger.js';
 import {
+  buildLinkedInProfile,
+  buildLinkedInCompanyPage,
   createLinkedInLeadGenCampaign,
   generateAudienceSegments,
   generateLinkedInContentPlan,
   generateOutreachMessages,
   generatePerformanceMetrics,
   findClientProspects,
-  type LinkedInProfile,
-  type LinkedInCompanyPage,
+  type ClientProspect,
+  type ContentPlanItem,
 } from './agent.js';
 import { addCustomerPersona } from '../business/analyzer.js';
 import { existsSync, readdirSync } from 'node:fs';
@@ -222,42 +224,12 @@ async function ensureLinkedInAuth(project: Project, taskId: string): Promise<Wor
   };
 }
 
-function buildLinkedInProfile(project: Project): LinkedInProfile {
-  const name = getBusinessName(project);
-  const industry = getBusinessIndustry(project);
-  return {
-    headline: `${name} | ${industry} Specialist | Driving Growth Through Digital Marketing`,
-    summary: `${name} is a professional ${industry} service provider helping businesses in Pakistan build their online presence, generate qualified leads, and grow revenue through data-driven strategies. Services include social media management, SEO, PPC, content marketing, and LinkedIn marketing.`,
-    experience: [
-      `${name} - ${industry} Specialist (2023-Present)`,
-      'Freelance Marketing Consultant (2022-2023)',
-    ],
-    skills: [
-      'Digital Marketing', 'Social Media Marketing', 'LinkedIn Marketing',
-      'Lead Generation', 'Content Strategy', 'SEO', 'PPC Advertising',
-      'Marketing Strategy', 'Brand Management', 'Analytics',
-    ],
-    recommendations: [],
-  };
+function buildProfile(project: Project) {
+  return buildLinkedInProfile(project);
 }
 
-function buildLinkedInCompanyPage(project: Project): LinkedInCompanyPage {
-  const name = getBusinessName(project);
-  const industry = getBusinessIndustry(project);
-  return {
-    name: `${name} Digital Marketing`,
-    description: `${name} provides comprehensive digital marketing services including social media management, SEO, PPC advertising, content marketing, and LinkedIn marketing. We help businesses in Pakistan establish strong online presence and generate qualified leads.`,
-    industry,
-    location: 'Lahore, Pakistan',
-    website: 'https://www.hunarmand.pk',
-    logo: '',
-    services: [
-      'Social Media Management', 'Search Engine Optimization (SEO)',
-      'Pay-Per-Click Advertising (PPC)', 'Content Marketing',
-      'LinkedIn Marketing', 'Lead Generation',
-    ],
-    cta: 'Visit Website',
-  };
+function buildCompanyPage(project: Project) {
+  return buildLinkedInCompanyPage(project);
 }
 
 export async function executeLinkedInQ2Workflow(
@@ -340,7 +312,7 @@ async function executeLinkedInProfile(
     return { success: true, action: 'COMPLETED', message: 'LinkedIn authentication verified' };
   }
 
-  const profile = buildLinkedInProfile(project);
+  const profile = buildProfile(project);
 
   if (title.includes('headline')) {
     if (!hasBrowser) {
@@ -407,7 +379,7 @@ async function executeCompanyPage(
   const title = task.title.toLowerCase();
   const browser = getBrowserManager();
   const hasBrowser = browser.isLaunched();
-  const pageData = buildLinkedInCompanyPage(project);
+  const pageData = buildCompanyPage(project);
 
   if (title.includes('create') && title.includes('company')) {
     if (!hasBrowser) {
@@ -460,7 +432,7 @@ async function executeLeadGenCampaign(
   const hasBrowser = browser.isLaunched();
 
   if (title.includes('campaign') && !title.includes('creative') && !title.includes('form')) {
-    const segments = generateAudienceSegments();
+    const segments = generateAudienceSegments(project);
     if (!hasBrowser) {
       const campaign = createLinkedInLeadGenCampaign(
         `${getBusinessName(project)} LinkedIn Campaign`, 'Lead Generation',
@@ -504,7 +476,7 @@ async function executeAudienceSegments(
   task: Task,
 ): Promise<WorkflowResult> {
   const title = task.title.toLowerCase();
-  const segments = generateAudienceSegments();
+  const segments = generateAudienceSegments(project);
 
   for (let i = 0; i < segments.length; i++) {
     if (title.includes(`segment ${i + 1}`) || title.includes(`segment ${['one', 'two', 'three'][i]}`)) {
@@ -535,7 +507,7 @@ async function executeAIPlanning(
   const title = task.title.toLowerCase();
 
   if (title.includes('persona') || title.includes('client persona')) {
-    const profile = buildLinkedInProfile(project);
+    const profile = buildProfile(project);
     addCustomerPersona(project, {
       name: 'Digital Marketing Client Persona', age: '28-55', gender: 'Any',
       location: 'Lahore, Karachi, Islamabad, Pakistan',
@@ -555,7 +527,7 @@ async function executeAIPlanning(
     return {
       success: true, action: 'COMPLETED',
       message: `7-day LinkedIn content plan generated: ${plan.length} posts`,
-      details: { contentPlan: plan },
+      details: { contentPlan: plan.map(p => ({ day: p.day, topic: p.topic, hook: p.hook, format: p.format, cta: p.cta })) },
     };
   }
 
@@ -586,7 +558,7 @@ async function executeClientHunting(
   const title = task.title.toLowerCase();
 
   if (title.includes('research') || title.includes('prospect') || title.includes('client')) {
-    const prospects = findClientProspects();
+    const prospects = findClientProspects(project);
     return {
       success: true, action: 'COMPLETED',
       message: `${prospects.length} client prospects identified`,
@@ -602,7 +574,7 @@ async function executeClientHunting(
   }
 
   if (title.includes('qualif')) {
-    const prospects = findClientProspects();
+    const prospects = findClientProspects(project);
     const qualified = prospects.filter(p => p.qualificationScore >= 75).sort((a, b) => b.qualificationScore - a.qualificationScore);
     return {
       success: true, action: 'COMPLETED',
@@ -624,40 +596,33 @@ async function executeOutreachMessages(
   task: Task,
 ): Promise<WorkflowResult> {
   const title = task.title.toLowerCase();
-  const messages = generateOutreachMessages('Digital Marketing');
-  const prospects = findClientProspects();
+  const prospects = findClientProspects(project);
   const firstProspect = prospects[0];
+  const messages = firstProspect
+    ? generateOutreachMessages(firstProspect, 'Digital Marketing')
+    : { connectionRequest: '', firstOutreach: '', followUp: '' };
 
   if (title.includes('connection')) {
-    const personalized = firstProspect
-      ? messages.connectionRequest.replace('[Name]', firstProspect.contactPerson).replace('[Industry]', firstProspect.industry)
-      : messages.connectionRequest;
     return {
       success: true, action: 'COMPLETED',
       message: 'Connection request message personalized and generated',
-      details: { connectionRequest: personalized, personalizationReason: firstProspect ? `Personalized for ${firstProspect.contactPerson} (${firstProspect.industry})` : 'Template only' },
+      details: { connectionRequest: messages.connectionRequest, personalizationReason: firstProspect ? `Personalized for ${firstProspect.contactPerson} (${firstProspect.industry})` : 'Template only' },
     };
   }
 
   if (title.includes('first') || title.includes('outreach')) {
-    const personalized = firstProspect
-      ? messages.firstOutreach.replace('[Name]', firstProspect.contactPerson).replace('[Industry]', firstProspect.industry)
-      : messages.firstOutreach;
     return {
       success: true, action: 'COMPLETED',
       message: 'First outreach message personalized and generated',
-      details: { firstOutreach: personalized, personalizationReason: firstProspect ? `Personalized for ${firstProspect.contactPerson}` : 'Template only' },
+      details: { firstOutreach: messages.firstOutreach, personalizationReason: firstProspect ? `Personalized for ${firstProspect.contactPerson}` : 'Template only' },
     };
   }
 
   if (title.includes('follow')) {
-    const personalized = firstProspect
-      ? messages.followUp.replace('[Name]', firstProspect.contactPerson)
-      : messages.followUp;
     return {
       success: true, action: 'COMPLETED',
       message: 'Follow-up message personalized and generated',
-      details: { followUp: personalized, personalizationReason: firstProspect ? `Personalized for ${firstProspect.contactPerson}` : 'Template only' },
+      details: { followUp: messages.followUp, personalizationReason: firstProspect ? `Personalized for ${firstProspect.contactPerson}` : 'Template only' },
     };
   }
 
