@@ -160,7 +160,14 @@ export class BrowserManager {
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     if (!existsSync(dir2)) mkdirSync(dir2, { recursive: true });
 
-    const path = join(EVIDENCE_DIR, filename);
+    let saveDir = EVIDENCE_DIR;
+    if (filename.startsWith('q2-') || filename.startsWith('Q2-')) {
+      saveDir = dir2;
+    } else if (filename.startsWith('q1-') || filename.startsWith('Q1-')) {
+      saveDir = dir;
+    }
+
+    const path = join(saveDir, filename);
     const page = this.getPage();
     await page.screenshot({ path, fullPage: true });
     logger.info('BrowserManager', `Screenshot saved: ${path}`);

@@ -591,6 +591,12 @@ export class Orchestrator {
 
   resumeExecution(mode: AgentMode = 'DEMO_MODE'): Promise<ExecutionReport> {
     logger.info('Orchestrator', 'Resuming execution from last state');
+    const project = this.getProject();
+    const actionRequiredTasks = project.tasks.filter(t => t.state === 'ACTION_REQUIRED');
+    for (const task of actionRequiredTasks) {
+      updateTaskState(project, task.id, 'PENDING');
+      logger.info('Orchestrator', `Reset task "${task.title}" from ACTION_REQUIRED to PENDING for resume`);
+    }
     return this.executeProject(mode);
   }
 

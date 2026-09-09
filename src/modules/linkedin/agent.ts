@@ -74,6 +74,7 @@ export interface ClientProspect {
   qualificationScore: number;
   qualificationReason: string;
   researchTimestamp: string;
+  dataClassification: 'GENERATED' | 'RESEARCHED' | 'RESEARCH_UNAVAILABLE';
 }
 
 export interface ContentPlanItem {
@@ -502,6 +503,7 @@ export function findClientProspects(project?: Project): ClientProspect[] {
       qualificationScore: 88,
       qualificationReason: 'Active LinkedIn presence, 50+ employees, recently posted about hiring marketing team',
       researchTimestamp: new Date().toISOString(),
+      dataClassification: 'GENERATED',
     },
     {
       id: crypto.randomUUID(),
@@ -517,6 +519,7 @@ export function findClientProspects(project?: Project): ClientProspect[] {
       qualificationScore: 82,
       qualificationReason: 'Growing e-commerce business, limited digital marketing presence, potential for social media growth',
       researchTimestamp: new Date().toISOString(),
+      dataClassification: 'GENERATED',
     },
     {
       id: crypto.randomUUID(),
@@ -532,6 +535,7 @@ export function findClientProspects(project?: Project): ClientProspect[] {
       qualificationScore: 79,
       qualificationReason: 'Active on Instagram but low engagement, needs content strategy and influencer partnerships',
       researchTimestamp: new Date().toISOString(),
+      dataClassification: 'GENERATED',
     },
     {
       id: crypto.randomUUID(),
@@ -548,6 +552,7 @@ export function findClientProspects(project?: Project): ClientProspect[] {
       qualificationScore: 91,
       qualificationReason: 'Education business with strong LinkedIn presence, actively promoting courses, needs lead gen at scale',
       researchTimestamp: new Date().toISOString(),
+      dataClassification: 'GENERATED',
     },
     {
       id: crypto.randomUUID(),
@@ -564,6 +569,7 @@ export function findClientProspects(project?: Project): ClientProspect[] {
       qualificationScore: 85,
       qualificationReason: 'Real estate company with active ad spend, looking for better ROI on digital campaigns',
       researchTimestamp: new Date().toISOString(),
+      dataClassification: 'GENERATED',
     },
     {
       id: crypto.randomUUID(),
@@ -579,6 +585,7 @@ export function findClientProspects(project?: Project): ClientProspect[] {
       qualificationScore: 76,
       qualificationReason: 'B2B textile manufacturer with international clients, needs LinkedIn presence for B2B lead generation',
       researchTimestamp: new Date().toISOString(),
+      dataClassification: 'GENERATED',
     },
     {
       id: crypto.randomUUID(),
@@ -594,6 +601,7 @@ export function findClientProspects(project?: Project): ClientProspect[] {
       qualificationScore: 80,
       qualificationReason: 'Healthcare clinic with outdated website, needs local SEO and patient acquisition strategy',
       researchTimestamp: new Date().toISOString(),
+      dataClassification: 'GENERATED',
     },
     {
       id: crypto.randomUUID(),
@@ -609,6 +617,7 @@ export function findClientProspects(project?: Project): ClientProspect[] {
       qualificationScore: 74,
       qualificationReason: 'Handicrafts business expanding to e-commerce, needs digital marketing for online sales',
       researchTimestamp: new Date().toISOString(),
+      dataClassification: 'GENERATED',
     },
     {
       id: crypto.randomUUID(),
@@ -624,6 +633,7 @@ export function findClientProspects(project?: Project): ClientProspect[] {
       qualificationScore: 71,
       qualificationReason: 'Wholesale trader with growing Facebook presence, needs structured digital marketing',
       researchTimestamp: new Date().toISOString(),
+      dataClassification: 'GENERATED',
     },
     {
       id: crypto.randomUUID(),
@@ -640,6 +650,7 @@ export function findClientProspects(project?: Project): ClientProspect[] {
       qualificationScore: 93,
       qualificationReason: 'SaaS startup with strong product-market fit, actively seeking marketing partner for growth',
       researchTimestamp: new Date().toISOString(),
+      dataClassification: 'GENERATED',
     },
   ];
 

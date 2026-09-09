@@ -28,6 +28,35 @@ export interface WorkflowResult {
   verification?: { passed: boolean; expected: string; observed: string; details: string };
 }
 
+export function validateQ2Evidence(subdir: string): Array<{ code: string; title: string; status: 'VERIFIED' | 'MISSING'; files: string[] }> {
+  const expected = [
+    { code: 'Q2-01', title: 'Profile Overview' },
+    { code: 'Q2-02', title: 'Profile Headline' },
+    { code: 'Q2-03', title: 'Profile About' },
+    { code: 'Q2-04', title: 'Profile Skills' },
+    { code: 'Q2-05', title: 'Profile Certifications' },
+    { code: 'Q2-06', title: 'Company Page Details' },
+    { code: 'Q2-07', title: 'Ad Creative' },
+    { code: 'Q2-08', title: 'Audience Segment' },
+    { code: 'Q2-09', title: 'Outreach Message' },
+    { code: 'Q2-10', title: 'Content Plan' },
+    { code: 'Q2-11', title: 'Lead Gen Form' },
+    { code: 'Q2-12', title: 'Campaign Launch' },
+  ];
+
+  try {
+    const evidenceDir = join(process.cwd(), 'evidence', subdir);
+    const files = readdirSync(evidenceDir).filter(f => f.endsWith('.png'));
+    return expected.map(item => ({
+      ...item,
+      status: files.some(f => f.includes(item.code)) ? 'VERIFIED' as const : 'MISSING' as const,
+      files: files.filter(f => f.includes(item.code)),
+    }));
+  } catch {
+    return expected.map(item => ({ ...item, status: 'MISSING' as const, files: [] }));
+  }
+}
+
 interface PageState {
   url: string;
   title: string;
@@ -438,7 +467,7 @@ async function executeLeadGenCampaign(
         `${getBusinessName(project)} LinkedIn Campaign`, 'Lead Generation',
         segments, 'PKR 30,000', 'Banner Image', 'Grow your business with data-driven digital marketing.',
       );
-      return { success: true, action: 'SIMULATED', message: `[SIMULATED] Campaign "${campaign.name}" created`, details: { campaignId: campaign.id, simulated: true } };
+      return { success: true, action: 'SIMULATED', message: `[SIMULATED] Campaign "${campaign.name}" created - NOT ACTIVATED (requires user approval to spend)`, details: { campaignId: campaign.id, simulated: true, status: 'CREATED_NOT_ACTIVATED' } };
     }
     const authResult = await ensureLinkedInAuth(project, task.id);
     if (authResult) return authResult;
@@ -527,7 +556,7 @@ async function executeAIPlanning(
     return {
       success: true, action: 'COMPLETED',
       message: `7-day LinkedIn content plan generated: ${plan.length} posts`,
-      details: { contentPlan: plan.map(p => ({ day: p.day, topic: p.topic, hook: p.hook, format: p.format, cta: p.cta })) },
+      details: { contentPlan: plan.map(p => ({ day: p.day, topic: p.topic, hook: p.hook, format: p.format, cta: p.cta })), status: 'CONTENT_GENERATED' },
     };
   }
 
@@ -606,7 +635,7 @@ async function executeOutreachMessages(
     return {
       success: true, action: 'COMPLETED',
       message: 'Connection request message personalized and generated',
-      details: { connectionRequest: messages.connectionRequest, personalizationReason: firstProspect ? `Personalized for ${firstProspect.contactPerson} (${firstProspect.industry})` : 'Template only' },
+      details: { connectionRequest: messages.connectionRequest, status: 'DRAFT', personalizationReason: firstProspect ? `Personalized for ${firstProspect.contactPerson} (${firstProspect.industry})` : 'Template only' },
     };
   }
 
@@ -614,7 +643,7 @@ async function executeOutreachMessages(
     return {
       success: true, action: 'COMPLETED',
       message: 'First outreach message personalized and generated',
-      details: { firstOutreach: messages.firstOutreach, personalizationReason: firstProspect ? `Personalized for ${firstProspect.contactPerson}` : 'Template only' },
+      details: { firstOutreach: messages.firstOutreach, status: 'DRAFT', personalizationReason: firstProspect ? `Personalized for ${firstProspect.contactPerson}` : 'Template only' },
     };
   }
 
@@ -622,7 +651,7 @@ async function executeOutreachMessages(
     return {
       success: true, action: 'COMPLETED',
       message: 'Follow-up message personalized and generated',
-      details: { followUp: messages.followUp, personalizationReason: firstProspect ? `Personalized for ${firstProspect.contactPerson}` : 'Template only' },
+      details: { followUp: messages.followUp, status: 'DRAFT', personalizationReason: firstProspect ? `Personalized for ${firstProspect.contactPerson}` : 'Template only' },
     };
   }
 
@@ -634,6 +663,7 @@ async function executeOutreachMessages(
       firstOutreach: messages.firstOutreach,
       followUp: messages.followUp,
       prospectsUsed: prospects.length,
+      status: 'DRAFT',
     },
   };
 }
