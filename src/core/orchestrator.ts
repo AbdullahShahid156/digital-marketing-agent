@@ -575,7 +575,6 @@ export class Orchestrator {
       }
     }
 
-    this.printExecutionSummary(report);
     return report;
   }
 
@@ -633,24 +632,6 @@ export class Orchestrator {
     console.log(`    ${instruction.split('\n')[0]}`);
   }
 
-  private printExecutionSummary(report: ExecutionReport): void {
-    console.log('\n' + '='.repeat(60));
-    console.log('EXECUTION COMPLETE');
-    console.log('='.repeat(60));
-    console.log(`Project: ${report.projectName}`);
-    console.log(`Mode: ${report.mode}`);
-    console.log(`Duration: ${(report.duration / 1000).toFixed(1)}s`);
-    console.log('\nResults:');
-    console.log(`  Total: ${report.totalTasks}`);
-    console.log(`  Completed: ${report.completedTasks}`);
-    console.log(`  Failed: ${report.failedTasks}`);
-    console.log(`  Action Required: ${report.actionRequiredTasks}`);
-    console.log(`  Blocked: ${report.blockedTasks}`);
-    if (report.evidenceCaptured.length > 0) {
-      console.log(`\nEvidence Captured: ${report.evidenceCaptured.length} screenshots`);
-    }
-    console.log('='.repeat(60) + '\n');
-  }
 }
 
 export const orchestrator = new Orchestrator();

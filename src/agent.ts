@@ -1,23 +1,25 @@
 #!/usr/bin/env node
+import * as readline from 'node:readline';
 import { orchestrator } from './core/orchestrator.js';
+import { parseNaturalLanguage, formatDetectedPlan } from './core/nlp.js';
+import {
+  printBanner,
+  printAgentHeader,
+  printRequirementPlan,
+  printActionRequired,
+  printFinalReport,
+} from './core/display.js';
 import { logger } from './core/logger.js';
 import type { AgentMode } from './types/index.js';
 
 const VALID_MODES: AgentMode[] = ['DEMO_MODE', 'LIVE_MODE'];
 const VALID_SECTIONS = ['ALL', 'Q1', 'Q2'];
 
-function printBanner(): void {
-  console.log('='.repeat(60));
-  console.log('  HUNARMAND PUNJAB - AI DIGITAL MARKETING AGENT');
-  console.log('  Batch-3 | Facebook/Meta + LinkedIn Assignment');
-  console.log('='.repeat(60));
-  console.log('');
-}
-
-function parseArgs(argv: string[]): { mode: AgentMode; section: string; resume: boolean } {
+function parseArgs(argv: string[]): { mode: AgentMode; section: string; resume: boolean; interactive: boolean } {
   let mode: AgentMode = 'DEMO_MODE';
   let section = 'ALL';
   let resume = false;
+  let interactive = true;
 
   for (let i = 2; i < argv.length; i++) {
     const arg = argv[i];
@@ -29,6 +31,7 @@ function parseArgs(argv: string[]): { mode: AgentMode; section: string; resume: 
         console.error(`Invalid mode: ${argv[i + 1]}. Use: ${VALID_MODES.join(', ')}`);
         process.exit(1);
       }
+      interactive = false;
       i++;
     } else if (arg === '--section' && argv[i + 1]) {
       const val = argv[i + 1].toUpperCase();
@@ -38,57 +41,138 @@ function parseArgs(argv: string[]): { mode: AgentMode; section: string; resume: 
         console.error(`Invalid section: ${argv[i + 1]}. Use: ${VALID_SECTIONS.join(', ')}`);
         process.exit(1);
       }
+      interactive = false;
       i++;
     } else if (arg === '--resume') {
       resume = true;
+      interactive = false;
     } else if (arg === '--help' || arg === '-h') {
-      console.log('Usage: npm run agent [options]');
-      console.log('');
-      console.log('Options:');
-      console.log('  --mode <mode>     Execution mode: DEMO_MODE (default) or LIVE_MODE');
-      console.log('  --section <sec>   Section to run: ALL (default), Q1, or Q2');
-      console.log('  --resume          Resume from last execution state');
-      console.log('  --help, -h        Show this help message');
-      console.log('');
-      console.log('Examples:');
-      console.log('  npm run agent                          Run all tasks in DEMO_MODE');
-      console.log('  npm run agent -- --mode LIVE_MODE      Run all tasks in LIVE_MODE');
-      console.log('  npm run agent -- --section Q1          Run only Facebook/Meta tasks');
-      console.log('  npm run agent -- --resume              Resume from previous state');
+      printHelp();
       process.exit(0);
     }
   }
 
-  return { mode, section, resume };
+  return { mode, section, resume, interactive };
 }
 
-async function main(): Promise<void> {
+function printHelp(): void {
+  console.log('Usage: npm run agent [options]');
+  console.log('');
+  console.log('Options:');
+  console.log('  --mode <mode>     Execution mode: DEMO_MODE (default) or LIVE_MODE');
+  console.log('  --section <sec>   Section to run: ALL (default), Q1, or Q2');
+  console.log('  --resume          Resume from last execution state');
+  console.log('  --help, -h        Show this help message');
+  console.log('');
+  console.log('Interactive mode:');
+  console.log('  npm run agent                     Start interactive agent');
+  console.log('');
+  console.log('Examples:');
+  console.log('  npm run agent                     Start interactive agent');
+  console.log('  npm run agent -- --mode LIVE_MODE Run all tasks in LIVE_MODE');
+  console.log('  npm run agent -- --section Q1    Run only Facebook/Meta tasks');
+  console.log('  npm run agent -- --resume         Resume from previous state');
+  console.log('');
+  console.log('Natural language examples:');
+  console.log('  "Complete my LinkedIn assignment"');
+  console.log('  "Do Q1 Facebook tasks"');
+  console.log('  "Run everything in live mode"');
+  console.log('  "Resume where I left off"');
+}
+
+async function promptUser(rl: readline.Interface, question: string): Promise<string> {
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      resolve(answer.trim());
+    });
+  });
+}
+
+async function runAgent(mode: AgentMode, section: string, resume: boolean): Promise<void> {
   printBanner();
-
-  const args = parseArgs(process.argv);
-
-  logger.info('Agent', `Mode: ${args.mode} | Section: ${args.section} | Resume: ${args.resume}`);
 
   await orchestrator.initialize();
 
   const progress = orchestrator.getProgress();
-  if (progress.completedTasks > 0 && args.resume) {
-    console.log(`Resuming execution. ${progress.completedTasks} tasks already completed.`);
+  if (progress.completedTasks > 0) {
+    console.log(`Previous progress: ${progress.percentComplete.toFixed(1)}% (${progress.completedTasks}/${progress.totalTasks} tasks completed)`);
+    if (resume) {
+      console.log('Resuming execution...');
+    }
+    console.log('');
   }
 
-  console.log(`\nProject: ${progress.projectName}`);
-  console.log(`Current Progress: ${progress.percentComplete.toFixed(1)}% (${progress.completedTasks}/${progress.totalTasks} tasks)`);
-  console.log('');
+  printAgentHeader(mode, section);
 
-  const report = args.resume
-    ? await orchestrator.resumeExecution(args.mode)
-    : await orchestrator.executeProject(args.mode, args.section as 'Q1' | 'Q2' | 'ALL');
+  const requirements = orchestrator.loadRequirements(section as 'Q1' | 'Q2' | 'ALL');
+  const tasks = orchestrator.buildTaskGraph(requirements);
 
-  orchestrator.report();
+  printRequirementPlan(requirements, tasks);
 
-  console.log('Execution finished.');
+  const report = resume
+    ? await orchestrator.resumeExecution(mode)
+    : await orchestrator.executeProject(mode, section as 'Q1' | 'Q2' | 'ALL');
+
+  const allTasks = orchestrator.getProject().tasks;
+  printFinalReport(report, allTasks);
+
   if (report.actionRequiredTasks > 0) {
-    console.log(`${report.actionRequiredTasks} tasks require user action. Run with --resume after completing them.`);
+    const actionTasks = allTasks.filter(t => t.state === 'ACTION_REQUIRED');
+    for (const task of actionTasks) {
+      printActionRequired(task.title, task.description);
+    }
+  }
+}
+
+async function runInteractive(): Promise<void> {
+  printBanner();
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  try {
+    console.log('What do you want me to do?');
+    console.log('');
+    console.log('Examples:');
+    console.log('  "Complete my LinkedIn assignment"');
+    console.log('  "Do Q1 Facebook tasks"');
+    console.log('  "Run everything in live mode"');
+    console.log('  "Resume where I left off"');
+    console.log('');
+
+    const input = await promptUser(rl, '> ');
+
+    if (!input) {
+      console.log('No input provided. Running full assignment in DEMO_MODE.');
+    }
+
+    const parsed = parseNaturalLanguage(input);
+
+    if (parsed.intent === 'help') {
+      printHelp();
+      return;
+    }
+
+    console.log('');
+    console.log(formatDetectedPlan(parsed));
+    console.log('');
+
+    await runAgent(parsed.mode, parsed.section, parsed.resume);
+  } finally {
+    rl.close();
+  }
+}
+
+async function main(): Promise<void> {
+  const args = parseArgs(process.argv);
+
+  if (args.interactive) {
+    await runInteractive();
+  } else {
+    logger.info('Agent', `Mode: ${args.mode} | Section: ${args.section} | Resume: ${args.resume}`);
+    await runAgent(args.mode, args.section, args.resume);
   }
 }
 

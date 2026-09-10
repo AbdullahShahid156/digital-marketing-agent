@@ -9,6 +9,11 @@ export function createTask(
   description: string,
   dependencies: string[] = []
 ): Task {
+  const existing = project.tasks.find(t => t.requirementId === requirementId && t.title === title);
+  if (existing) {
+    return existing;
+  }
+
   const task: Task = {
     id: crypto.randomUUID(),
     requirementId,
