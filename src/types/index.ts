@@ -18,6 +18,16 @@ export type TaskExecutionMode =
   | 'USER_ACTION'
   | 'APPROVAL_REQUIRED';
 
+export type DataClassification =
+  | 'REAL'
+  | 'SIMULATED'
+  | 'GENERATED'
+  | 'DRAFT'
+  | 'CREATED_LOCALLY'
+  | 'ACTION_REQUIRED'
+  | 'APPROVAL_REQUIRED'
+  | 'BLOCKED';
+
 export interface ActionPlanStep {
   tool: string;
   action: string;
@@ -56,6 +66,7 @@ export interface Task {
   actionPlan?: ActionPlanStep[];
   evidenceRequirements?: TaskEvidenceRequirement[];
   userActionInstruction?: string;
+  dataClassification?: DataClassification;
   createdAt: Date;
   updatedAt: Date;
   completedAt?: Date;

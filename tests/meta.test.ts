@@ -87,8 +87,8 @@ describe('Facebook/Meta Agent', () => {
     expect(checklist).toContain('Profile photo uploaded (professional, clear)');
   });
 
-  it('should generate ad copy variations', () => {
-    const variations = generateAdCopyVariations('Test Headline', 'Test primary text');
+  it('should generate ad copy variations', async () => {
+    const variations = await generateAdCopyVariations('Test Headline', 'Test primary text');
     expect(variations).toHaveLength(3);
     expect(variations[0].headline).toBe('Test Headline');
   });

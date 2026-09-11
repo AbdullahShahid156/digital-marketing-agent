@@ -265,153 +265,171 @@ export class Orchestrator {
       reqId: string;
       title: string;
       description: string;
-      deps: string[];
+      depTitles: string[];
     }> = [];
 
     for (const req of requirements) {
       switch (req.id) {
         case 'Q1-R1':
           taskDefinitions.push(
-            { reqId: req.id, title: 'Create Business Profile', description: 'Define business name, industry, location, target market', deps: [] },
-            { reqId: req.id, title: 'Define 4Ps Marketing Mix', description: 'Set product, price, place, promotion', deps: [] },
-            { reqId: req.id, title: 'Define 4As Framework', description: 'Set acceptability, affordability, accessibility, awareness', deps: [] },
-            { reqId: req.id, title: 'Create Customer Persona', description: 'Define target customer demographics, interests, pain points', deps: [] },
+            { reqId: req.id, title: 'Create Business Profile', description: 'Define business name, industry, location, target market', depTitles: [] },
+            { reqId: req.id, title: 'Define 4Ps Marketing Mix', description: 'Set product, price, place, promotion', depTitles: ['Create Business Profile'] },
+            { reqId: req.id, title: 'Define 4As Framework', description: 'Set acceptability, affordability, accessibility, awareness', depTitles: ['Create Business Profile'] },
+            { reqId: req.id, title: 'Create Customer Persona', description: 'Define target customer demographics, interests, pain points', depTitles: ['Create Business Profile'] },
           );
           break;
 
         case 'Q1-R2':
           taskDefinitions.push(
-            { reqId: req.id, title: 'Facebook Login', description: 'Log into Facebook account for page management', deps: [] },
-            { reqId: req.id, title: 'Create Facebook Business Page', description: 'Create page with name, category, and basic info', deps: [] },
-            { reqId: req.id, title: 'Configure Page Profile', description: 'Set profile photo, cover photo, about section, contact info', deps: [] },
-            { reqId: req.id, title: 'Set Page CTA Button', description: 'Configure call-to-action button', deps: [] },
-            { reqId: req.id, title: 'Configure Page Settings', description: 'Set visibility, messaging, roles, featured section', deps: [] },
+            { reqId: req.id, title: 'Facebook Login', description: 'Log into Facebook account for page management', depTitles: [] },
+            { reqId: req.id, title: 'Create Facebook Business Page', description: 'Create page with name, category, and basic info', depTitles: ['Facebook Login'] },
+            { reqId: req.id, title: 'Configure Page Profile', description: 'Set profile photo, cover photo, about section, contact info', depTitles: ['Create Facebook Business Page'] },
+            { reqId: req.id, title: 'Set Page CTA Button', description: 'Configure call-to-action button', depTitles: ['Configure Page Profile'] },
+            { reqId: req.id, title: 'Configure Page Settings', description: 'Set visibility, messaging, roles, featured section', depTitles: ['Configure Page Profile'] },
           );
           break;
 
         case 'Q1-R3':
           taskDefinitions.push(
-            { reqId: req.id, title: 'Access Professional Dashboard', description: 'Navigate to and configure professional dashboard', deps: [] },
-            { reqId: req.id, title: 'Configure Page Access Roles', description: 'Set up admin, editor, moderator roles', deps: [] },
-            { reqId: req.id, title: 'Link Instagram and WhatsApp', description: 'Connect linked accounts', deps: [] },
-            { reqId: req.id, title: 'Set Audience Controls', description: 'Configure moderation, profanity filter, audience restrictions', deps: [] },
+            { reqId: req.id, title: 'Access Professional Dashboard', description: 'Navigate to and configure professional dashboard', depTitles: ['Facebook Login'] },
+            { reqId: req.id, title: 'Configure Page Access Roles', description: 'Set up admin, editor, moderator roles', depTitles: ['Access Professional Dashboard'] },
+            { reqId: req.id, title: 'Link Instagram and WhatsApp', description: 'Connect linked accounts', depTitles: ['Access Professional Dashboard'] },
+            { reqId: req.id, title: 'Set Audience Controls', description: 'Configure moderation, profanity filter, audience restrictions', depTitles: ['Access Professional Dashboard'] },
           );
           break;
 
         case 'Q1-R4':
           taskDefinitions.push(
-            { reqId: req.id, title: 'Access Meta Business Suite', description: 'Navigate to Meta Business Suite', deps: [] },
-            { reqId: req.id, title: 'Configure Inbox Automation', description: 'Set up auto-replies and messaging rules', deps: [] },
-            { reqId: req.id, title: 'Set Up Content Planner', description: 'Configure content scheduling with weekly plan', deps: [] },
+            { reqId: req.id, title: 'Access Meta Business Suite', description: 'Navigate to Meta Business Suite', depTitles: ['Facebook Login'] },
+            { reqId: req.id, title: 'Configure Inbox Automation', description: 'Set up auto-replies and messaging rules', depTitles: ['Access Meta Business Suite'] },
+            { reqId: req.id, title: 'Set Up Content Planner', description: 'Configure content scheduling with weekly plan', depTitles: ['Access Meta Business Suite'] },
           );
           break;
 
         case 'Q1-R5':
           taskDefinitions.push(
-            { reqId: req.id, title: 'Create Facebook Ads Campaign', description: 'Create campaign with objective, budget, audience', deps: [] },
-            { reqId: req.id, title: 'Create Ad Set 1 - Interest Based', description: 'First ad set with interest-based targeting', deps: [] },
-            { reqId: req.id, title: 'Create Ad Set 2 - Lookalike', description: 'Second ad set with lookalike audience', deps: [] },
-            { reqId: req.id, title: 'Create Ads for Each Ad Set', description: 'Create ads with headlines, primary text, CTA', deps: [] },
+            { reqId: req.id, title: 'Create Facebook Ads Campaign', description: 'Create campaign with objective, budget, audience', depTitles: ['Facebook Login'] },
+            { reqId: req.id, title: 'Create Ad Set 1 - Interest Based', description: 'First ad set with interest-based targeting', depTitles: ['Create Facebook Ads Campaign'] },
+            { reqId: req.id, title: 'Create Ad Set 2 - Lookalike', description: 'Second ad set with lookalike audience', depTitles: ['Create Facebook Ads Campaign'] },
+            { reqId: req.id, title: 'Create Ads for Each Ad Set', description: 'Create ads with headlines, primary text, CTA', depTitles: ['Create Ad Set 1 - Interest Based', 'Create Ad Set 2 - Lookalike'] },
           );
           break;
 
         case 'Q1-R6':
           taskDefinitions.push(
-            { reqId: req.id, title: 'Create Lead Generation Form', description: 'Set up instant form with fields, offer, CTA', deps: [] },
-            { reqId: req.id, title: 'Configure Follow-up Message', description: 'Set thank you and follow-up messages', deps: [] },
+            { reqId: req.id, title: 'Create Lead Generation Form', description: 'Set up instant form with fields, offer, CTA', depTitles: ['Create Facebook Ads Campaign'] },
+            { reqId: req.id, title: 'Configure Follow-up Message', description: 'Set thank you and follow-up messages', depTitles: ['Create Lead Generation Form'] },
           );
           break;
 
         case 'Q1-R7':
           taskDefinitions.push(
-            { reqId: req.id, title: 'Create A/B Test', description: 'Set up test with version A/B, KPI, evaluation criteria', deps: [] },
+            { reqId: req.id, title: 'Create A/B Test', description: 'Set up test with version A/B, KPI, evaluation criteria', depTitles: ['Create Facebook Ads Campaign'] },
           );
           break;
 
         case 'Q1-R8':
           taskDefinitions.push(
-            { reqId: req.id, title: 'Collect Facebook Evidence', description: 'Capture screenshots of Page, Suite, Campaign, Ads, Form', deps: [] },
+            { reqId: req.id, title: 'Collect Facebook Evidence', description: 'Capture screenshots of Page, Suite, Campaign, Ads, Form', depTitles: ['Configure Page Settings', 'Set Audience Controls', 'Set Up Content Planner', 'Create Ads for Each Ad Set', 'Configure Follow-up Message', 'Create A/B Test'] },
           );
           break;
 
         case 'Q2-R1':
           taskDefinitions.push(
-            { reqId: req.id, title: 'LinkedIn Login', description: 'Log into LinkedIn account', deps: [] },
-            { reqId: req.id, title: 'Optimize LinkedIn Profile Headline', description: 'Set professional headline with keywords', deps: [] },
-            { reqId: req.id, title: 'Write LinkedIn About Section', description: 'Complete About section with service positioning', deps: [] },
-            { reqId: req.id, title: 'Add Skills and Experience', description: 'Add relevant skills and work experience', deps: [] },
+            { reqId: req.id, title: 'LinkedIn Login', description: 'Log into LinkedIn account', depTitles: [] },
+            { reqId: req.id, title: 'Optimize LinkedIn Profile Headline', description: 'Set professional headline with keywords', depTitles: ['LinkedIn Login'] },
+            { reqId: req.id, title: 'Write LinkedIn About Section', description: 'Complete About section with service positioning', depTitles: ['Optimize LinkedIn Profile Headline'] },
+            { reqId: req.id, title: 'Add Skills and Experience', description: 'Add relevant skills and work experience', depTitles: ['Write LinkedIn About Section'] },
           );
           break;
 
         case 'Q2-R2':
           taskDefinitions.push(
-            { reqId: req.id, title: 'Create LinkedIn Company Page', description: 'Set up company/agency page with branding', deps: [] },
-            { reqId: req.id, title: 'Configure Company Description', description: 'Add description, services, CTA', deps: [] },
+            { reqId: req.id, title: 'Create LinkedIn Company Page', description: 'Set up company/agency page with branding', depTitles: ['LinkedIn Login'] },
+            { reqId: req.id, title: 'Configure Company Description', description: 'Add description, services, CTA', depTitles: ['Create LinkedIn Company Page'] },
           );
           break;
 
         case 'Q2-R3':
           taskDefinitions.push(
-            { reqId: req.id, title: 'Create LinkedIn Lead Gen Campaign', description: 'Design campaign with objective, audience, budget', deps: [] },
-            { reqId: req.id, title: 'Create LinkedIn Ad Creative', description: 'Set up ad copy and creative', deps: [] },
-            { reqId: req.id, title: 'Create LinkedIn Lead Gen Form', description: 'Set up form with fields and offer', deps: [] },
+            { reqId: req.id, title: 'Create LinkedIn Lead Gen Campaign', description: 'Design campaign with objective, audience, budget', depTitles: ['Create LinkedIn Company Page'] },
+            { reqId: req.id, title: 'Create LinkedIn Ad Creative', description: 'Set up ad copy and creative', depTitles: ['Create LinkedIn Lead Gen Campaign'] },
+            { reqId: req.id, title: 'Create LinkedIn Lead Gen Form', description: 'Set up form with fields and offer', depTitles: ['Create LinkedIn Ad Creative'] },
           );
           break;
 
         case 'Q2-R4':
           taskDefinitions.push(
-            { reqId: req.id, title: 'Define Audience Segment 1', description: 'Small business owners in Pakistan', deps: [] },
-            { reqId: req.id, title: 'Define Audience Segment 2', description: 'Marketing managers in target industries', deps: [] },
+            { reqId: req.id, title: 'Define Audience Segment 1', description: 'Small business owners in Pakistan', depTitles: [] },
+            { reqId: req.id, title: 'Define Audience Segment 2', description: 'Marketing managers in target industries', depTitles: [] },
           );
           break;
 
         case 'Q2-R5':
           taskDefinitions.push(
-            { reqId: req.id, title: 'Generate AI Client Persona', description: 'Use AI to create client persona', deps: [] },
-            { reqId: req.id, title: 'Generate 7-Day Content Plan', description: 'Create weekly content/outreach plan', deps: [] },
-            { reqId: req.id, title: 'Generate Campaign Angle', description: 'Develop campaign messaging angle', deps: [] },
+            { reqId: req.id, title: 'Generate AI Client Persona', description: 'Use AI to create client persona', depTitles: [] },
+            { reqId: req.id, title: 'Generate 7-Day Content Plan', description: 'Create weekly content/outreach plan', depTitles: ['Generate AI Client Persona'] },
+            { reqId: req.id, title: 'Generate Campaign Angle', description: 'Develop campaign messaging angle', depTitles: ['Generate AI Client Persona'] },
           );
           break;
 
         case 'Q2-R6':
           taskDefinitions.push(
-            { reqId: req.id, title: 'Research Client Prospects', description: 'Find 10+ potential clients via LinkedIn, Facebook, directories', deps: [] },
-            { reqId: req.id, title: 'Qualify Prospects', description: 'Evaluate and rank prospects by fit', deps: [] },
+            { reqId: req.id, title: 'Research Client Prospects', description: 'Find 10+ potential clients via LinkedIn, Facebook, directories', depTitles: ['Generate AI Client Persona'] },
+            { reqId: req.id, title: 'Qualify Prospects', description: 'Evaluate and rank prospects by fit', depTitles: ['Research Client Prospects'] },
           );
           break;
 
         case 'Q2-R7':
           taskDefinitions.push(
-            { reqId: req.id, title: 'Write Connection Message', description: 'Draft LinkedIn connection request', deps: [] },
-            { reqId: req.id, title: 'Write First Outreach Message', description: 'Draft professional first outreach', deps: [] },
-            { reqId: req.id, title: 'Write Follow-up Message', description: 'Draft follow-up message', deps: [] },
+            { reqId: req.id, title: 'Write Connection Message', description: 'Draft LinkedIn connection request', depTitles: ['Qualify Prospects'] },
+            { reqId: req.id, title: 'Write First Outreach Message', description: 'Draft professional first outreach', depTitles: ['Qualify Prospects'] },
+            { reqId: req.id, title: 'Write Follow-up Message', description: 'Draft follow-up message', depTitles: ['Write First Outreach Message'] },
           );
           break;
 
         case 'Q2-R8':
           taskDefinitions.push(
-            { reqId: req.id, title: 'Define Campaign Metrics', description: 'Set KPIs for LinkedIn campaign', deps: [] },
-            { reqId: req.id, title: 'Define Outreach Metrics', description: 'Set KPIs for outreach performance', deps: [] },
-            { reqId: req.id, title: 'Create Improvement Strategy', description: 'Document improvement approach', deps: [] },
+            { reqId: req.id, title: 'Define Campaign Metrics', description: 'Set KPIs for LinkedIn campaign', depTitles: ['Create LinkedIn Lead Gen Form'] },
+            { reqId: req.id, title: 'Define Outreach Metrics', description: 'Set KPIs for outreach performance', depTitles: ['Write First Outreach Message'] },
+            { reqId: req.id, title: 'Create Improvement Strategy', description: 'Document improvement approach', depTitles: ['Define Campaign Metrics', 'Define Outreach Metrics'] },
           );
           break;
 
         case 'Q2-R9':
           taskDefinitions.push(
-            { reqId: req.id, title: 'Collect LinkedIn Evidence', description: 'Capture screenshots of profile, page, campaign, form', deps: [] },
+            { reqId: req.id, title: 'Collect LinkedIn Evidence', description: 'Capture screenshots of profile, page, campaign, form', depTitles: ['Add Skills and Experience', 'Configure Company Description', 'Create LinkedIn Lead Gen Form', 'Write Follow-up Message', 'Create Improvement Strategy'] },
           );
           break;
       }
     }
 
-    const createdTasks: Task[] = [];
     for (const def of taskDefinitions) {
-      const task = this.createTaskForRequirement(def.reqId, def.title, def.description, def.deps);
-      createdTasks.push(task);
+      const task = this.createTaskForRequirement(def.reqId, def.title, def.description, []);
+      tasks.push(task);
     }
 
-    logger.info('Orchestrator', `Built task graph: ${createdTasks.length} tasks from ${requirements.length} requirements`);
-    return createdTasks;
+    for (const def of taskDefinitions) {
+      const task = tasks.find(t => t.title === def.title);
+      if (!task) continue;
+
+      const depIds: string[] = [];
+      for (const depTitle of def.depTitles) {
+        const depTask = tasks.find(t => t.title === depTitle);
+        if (depTask) {
+          depIds.push(depTask.id);
+        }
+      }
+
+      if (depIds.length > 0) {
+        task.dependencies = depIds;
+        task.updatedAt = new Date();
+      }
+    }
+
+    saveProject(project, 'build_task_graph');
+    logger.info('Orchestrator', `Built task graph: ${tasks.length} tasks from ${requirements.length} requirements`);
+    return tasks;
   }
 
   async executeProject(mode: AgentMode = 'DEMO_MODE', section?: 'Q1' | 'Q2' | 'ALL'): Promise<ExecutionReport> {

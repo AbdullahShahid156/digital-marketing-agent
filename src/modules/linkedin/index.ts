@@ -9,5 +9,7 @@ export {
   generatePerformanceMetrics,
   generateLinkedInChecklist,
   findClientProspects,
+  generateLinkedInAdCopy,
+  generateLinkedInPost,
 } from './agent.js';
 export type { LinkedInProfile, LinkedInCompanyPage, LinkedInLeadGenCampaign, AudienceSegment, LinkedInLeadGenForm, ClientProspect } from './agent.js';

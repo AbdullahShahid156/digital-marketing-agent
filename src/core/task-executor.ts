@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type {
   Task, Project, AgentAction, ActionResult, AgentMode,
   TaskExecutionMode, ActionPlanStep, TaskEvidenceRequirement,
-  VerificationResult,
+  VerificationResult, DataClassification,
 } from '../types/index.js';
 import { ActionExecutor } from './action-executor.js';
 import { getBrowserManager } from './browser-manager.js';
@@ -103,6 +103,12 @@ export class TaskExecutor {
         case 'APPROVAL_REQUIRED':
           await this.executeApprovalRequired(project, task, result);
           break;
+      }
+
+      if (result.state === 'ACTION_REQUIRED') {
+        task.dataClassification = 'ACTION_REQUIRED';
+      } else if (result.state === 'BLOCKED') {
+        task.dataClassification = 'BLOCKED';
       }
 
       if (result.success) {
@@ -344,6 +350,7 @@ export class TaskExecutor {
         if (!result.success) {
           result.error = workflowResult.message;
         }
+        task.dataClassification = getBrowserManager().isLaunched() ? 'REAL' : 'CREATED_LOCALLY';
         return;
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
@@ -393,6 +400,7 @@ export class TaskExecutor {
         if (!result.success) {
           result.error = workflowResult.message;
         }
+        task.dataClassification = getBrowserManager().isLaunched() ? 'REAL' : 'CREATED_LOCALLY';
         return;
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
@@ -413,6 +421,7 @@ export class TaskExecutor {
         return;
       }
     }
+    task.dataClassification = 'CREATED_LOCALLY';
     result.success = true;
   }
 
@@ -455,6 +464,7 @@ export class TaskExecutor {
         if (!result.success) {
           result.error = workflowResult.message;
         }
+        task.dataClassification = 'REAL';
         return;
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
@@ -504,6 +514,7 @@ export class TaskExecutor {
         if (!result.success) {
           result.error = workflowResult.message;
         }
+        task.dataClassification = 'REAL';
         return;
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
@@ -533,6 +544,7 @@ export class TaskExecutor {
         }
       }
     }
+    task.dataClassification = 'REAL';
     result.success = true;
   }
 
@@ -556,6 +568,7 @@ export class TaskExecutor {
           outreachStatus: 'NOT_CONTACTED',
         });
       }
+      task.dataClassification = 'GENERATED';
       result.success = true;
       return;
     }
@@ -669,6 +682,7 @@ export class TaskExecutor {
 
     if (title.includes('content') && title.includes('calendar')) {
       const items = generateContentCalendar(project, 7);
+      task.dataClassification = 'GENERATED';
       result.success = items.length > 0;
       return;
     }
@@ -687,6 +701,7 @@ export class TaskExecutor {
 
   private async executeUserAction(project: Project, task: Task, result: TaskExecutionResult): Promise<void> {
     task.userActionInstruction = this.generateUserInstruction(task);
+    task.dataClassification = 'ACTION_REQUIRED';
     updateTaskState(project, task.id, 'ACTION_REQUIRED');
     result.state = 'ACTION_REQUIRED';
     result.error = `USER_ACTION_REQUIRED: ${task.userActionInstruction}`;
@@ -702,6 +717,7 @@ export class TaskExecutor {
     );
     const request = approvalMgr.requestApproval(action);
     if (request.status === 'PENDING') {
+      task.dataClassification = 'APPROVAL_REQUIRED';
       updateTaskState(project, task.id, 'ACTION_REQUIRED');
       result.state = 'ACTION_REQUIRED';
       result.error = `APPROVAL_REQUIRED: Action "${task.title}" needs approval. Risk: ${request.risk}. ID: ${request.id}`;

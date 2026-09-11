@@ -3,6 +3,7 @@ import { saveProject } from '../../core/state.js';
 import { logger } from '../../core/logger.js';
 import { ActionExecutor } from '../../core/action-executor.js';
 import { captureEvidence } from '../../core/evidence-manager.js';
+import { generateAdCopy, isLLMConfigured } from '../../core/llm.js';
 
 export interface FacebookPageOptimization {
   profilePhoto: string;
@@ -243,7 +244,23 @@ export function generateAdvancedPageSetup(): string[] {
   ];
 }
 
-export function generateAdCopyVariations(headline: string, primaryText: string): Ad[] {
+export async function generateAdCopyVariations(headline: string, primaryText: string, businessName?: string, product?: string, audience?: string): Promise<Ad[]> {
+  if (isLLMConfigured() && businessName && product && audience) {
+    try {
+      const variations = await generateAdCopy(businessName, product, audience, 'facebook');
+      return variations.map((copy, i) => ({
+        id: crypto.randomUUID(),
+        name: `${headline} - AI Version ${String.fromCharCode(65 + i)}`,
+        headline: i === 0 ? headline : `${headline} - ${['Premium', 'Exclusive', 'Limited'][i - 1] || 'Special'}`,
+        primaryText: copy,
+        callToAction: ['Learn More', 'Sign Up', 'Contact Us'][i] || 'Learn More',
+        creativeType: ['Image', 'Video', 'Carousel'][i] || 'Image',
+      }));
+    } catch (error) {
+      logger.warn('FacebookAgent', `LLM generation failed, using fallback: ${error}`);
+    }
+  }
+
   return [
     {
       id: crypto.randomUUID(),

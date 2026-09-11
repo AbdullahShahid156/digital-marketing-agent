@@ -15,11 +15,12 @@ import type { AgentMode } from './types/index.js';
 const VALID_MODES: AgentMode[] = ['DEMO_MODE', 'LIVE_MODE'];
 const VALID_SECTIONS = ['ALL', 'Q1', 'Q2'];
 
-function parseArgs(argv: string[]): { mode: AgentMode; section: string; resume: boolean; interactive: boolean } {
+function parseArgs(argv: string[]): { mode: AgentMode; section: string; resume: boolean; interactive: boolean; dryRun: boolean } {
   let mode: AgentMode = 'DEMO_MODE';
   let section = 'ALL';
   let resume = false;
   let interactive = true;
+  let dryRun = false;
 
   for (let i = 2; i < argv.length; i++) {
     const arg = argv[i];
@@ -46,13 +47,16 @@ function parseArgs(argv: string[]): { mode: AgentMode; section: string; resume: 
     } else if (arg === '--resume') {
       resume = true;
       interactive = false;
+    } else if (arg === '--dry-run') {
+      dryRun = true;
+      interactive = false;
     } else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
     }
   }
 
-  return { mode, section, resume, interactive };
+  return { mode, section, resume, interactive, dryRun };
 }
 
 function printHelp(): void {
@@ -62,6 +66,7 @@ function printHelp(): void {
   console.log('  --mode <mode>     Execution mode: DEMO_MODE (default) or LIVE_MODE');
   console.log('  --section <sec>   Section to run: ALL (default), Q1, or Q2');
   console.log('  --resume          Resume from last execution state');
+  console.log('  --dry-run         Print plan only, do not execute');
   console.log('  --help, -h        Show this help message');
   console.log('');
   console.log('Interactive mode:');
@@ -72,6 +77,7 @@ function printHelp(): void {
   console.log('  npm run agent -- --mode LIVE_MODE Run all tasks in LIVE_MODE');
   console.log('  npm run agent -- --section Q1    Run only Facebook/Meta tasks');
   console.log('  npm run agent -- --resume         Resume from previous state');
+  console.log('  npm run agent -- --dry-run        Print plan without executing');
   console.log('');
   console.log('Natural language examples:');
   console.log('  "Complete my LinkedIn assignment"');
@@ -88,7 +94,7 @@ async function promptUser(rl: readline.Interface, question: string): Promise<str
   });
 }
 
-async function runAgent(mode: AgentMode, section: string, resume: boolean): Promise<void> {
+async function runAgent(mode: AgentMode, section: string, resume: boolean, dryRun: boolean): Promise<void> {
   printBanner();
 
   await orchestrator.initialize();
@@ -108,6 +114,22 @@ async function runAgent(mode: AgentMode, section: string, resume: boolean): Prom
   const tasks = orchestrator.buildTaskGraph(requirements);
 
   printRequirementPlan(requirements, tasks);
+
+  if (dryRun) {
+    console.log('');
+    console.log('DRY RUN MODE — Planning only. No actions will be executed.');
+    console.log('');
+    console.log('Planned tasks:');
+    for (const task of tasks) {
+      const detail = task.actionPlan?.length
+        ? task.actionPlan.map(s => `${s.tool}: ${s.action}`).join('; ')
+        : task.description;
+      console.log(`  - [${task.id}] ${task.title} — ${detail}`);
+    }
+    console.log('');
+    console.log('Dry run complete. Use without --dry-run to execute.');
+    return;
+  }
 
   const report = resume
     ? await orchestrator.resumeExecution(mode)
@@ -159,7 +181,7 @@ async function runInteractive(): Promise<void> {
     console.log(formatDetectedPlan(parsed));
     console.log('');
 
-    await runAgent(parsed.mode, parsed.section, parsed.resume);
+    await runAgent(parsed.mode, parsed.section, parsed.resume, false);
   } finally {
     rl.close();
   }
@@ -171,8 +193,8 @@ async function main(): Promise<void> {
   if (args.interactive) {
     await runInteractive();
   } else {
-    logger.info('Agent', `Mode: ${args.mode} | Section: ${args.section} | Resume: ${args.resume}`);
-    await runAgent(args.mode, args.section, args.resume);
+    logger.info('Agent', `Mode: ${args.mode} | Section: ${args.section} | Resume: ${args.resume} | DryRun: ${args.dryRun}`);
+    await runAgent(args.mode, args.section, args.resume, args.dryRun);
   }
 }
 

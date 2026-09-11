@@ -1,5 +1,6 @@
 import type { Project } from '../../types/index.js';
 import { logger } from '../../core/logger.js';
+import { generateAdCopy, generatePostCaption, isLLMConfigured } from '../../core/llm.js';
 
 export interface LinkedInProfile {
   headline: string;
@@ -823,4 +824,44 @@ export function createLinkedInLeadGenCampaign(
 
   logger.info('LinkedInAgent', `Created LinkedIn Lead Gen Campaign: ${name}`);
   return campaign;
+}
+
+export async function generateLinkedInAdCopy(
+  businessName: string,
+  product: string,
+  audience: string,
+): Promise<{ headline: string; primaryText: string; cta: string }[]> {
+  if (isLLMConfigured()) {
+    try {
+      const variations = await generateAdCopy(businessName, product, audience, 'linkedin');
+      return variations.map((copy, i) => ({
+        headline: i === 0 ? `${businessName} - ${product}` : `${businessName} - ${['Premium', 'Exclusive', 'Professional'][i - 1] || 'Special'} ${product}`,
+        primaryText: copy,
+        cta: ['Learn More', 'Sign Up', 'Contact Us'][i] || 'Learn More',
+      }));
+    } catch (error) {
+      logger.warn('LinkedInAgent', `LLM generation failed, using fallback: ${error}`);
+    }
+  }
+
+  return [
+    { headline: `${businessName} - ${product}`, primaryText: `Discover how ${product} can transform your business.`, cta: 'Learn More' },
+    { headline: `${businessName} - Premium ${product}`, primaryText: `Get exclusive access to ${product}. Limited time offer.`, cta: 'Sign Up' },
+    { headline: `${businessName} - Professional ${product}`, primaryText: `Let's discuss how ${product} can help you grow.`, cta: 'Contact Us' },
+  ];
+}
+
+export async function generateLinkedInPost(
+  businessName: string,
+  topic: string,
+): Promise<string> {
+  if (isLLMConfigured()) {
+    try {
+      return await generatePostCaption(businessName, topic, 'linkedin');
+    } catch (error) {
+      logger.warn('LinkedInAgent', `LLM generation failed, using fallback: ${error}`);
+    }
+  }
+
+  return `Excited to share insights about ${topic}! At ${businessName}, we help businesses grow through data-driven marketing strategies. #DigitalMarketing #${topic.replace(/\s+/g, '')} #BusinessGrowth`;
 }

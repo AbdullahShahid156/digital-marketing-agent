@@ -147,8 +147,8 @@ describe('Facebook/Meta Agent - Enhanced', () => {
     expect(setup).toContain('Professional Dashboard accessed');
   });
 
-  it('should generate ad copy variations', () => {
-    const variations = generateAdCopyVariations('Test Headline', 'Test text');
+  it('should generate ad copy variations', async () => {
+    const variations = await generateAdCopyVariations('Test Headline', 'Test text');
     expect(variations).toHaveLength(3);
   });
 

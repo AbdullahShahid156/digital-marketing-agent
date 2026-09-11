@@ -179,7 +179,22 @@ describe('Step 6 - Q1 Meta Executable Workflows', () => {
     expect(report.completedTasks + report.failedTasks + report.actionRequiredTasks + report.blockedTasks)
       .toBe(report.totalTasks);
     expect(report.failedTasks).toBe(0);
-    expect(report.actionRequiredTasks).toBe(2);
-    expect(report.completedTasks).toBe(22);
+    expect(report.actionRequiredTasks).toBe(1);
+    expect(report.completedTasks).toBe(4);
+    expect(report.blockedTasks).toBe(19);
+  }, 30000);
+
+  it('should complete full Q2 DEMO_MODE execution without browser errors', async () => {
+    const orchestrator = new Orchestrator();
+    await orchestrator.initialize();
+    const report = await orchestrator.executeProject('DEMO_MODE', 'Q2');
+
+    expect(report.totalTasks).toBe(23);
+    expect(report.completedTasks + report.failedTasks + report.actionRequiredTasks + report.blockedTasks)
+      .toBe(report.totalTasks);
+    expect(report.failedTasks).toBe(0);
+    expect(report.actionRequiredTasks).toBe(1);
+    expect(report.completedTasks).toBe(11);
+    expect(report.blockedTasks).toBe(11);
   }, 30000);
 });

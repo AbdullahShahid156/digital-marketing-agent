@@ -31,10 +31,12 @@ export async function captureEvidence(
     logger.warn('EvidenceManager', 'Could not capture screenshot - browser not available');
   }
 
+  if (!screenshotPath) return null;
+
   const state = project.evidence.find(e => e.taskId === taskId && e.requirementId === requirementId);
   if (state) {
     state.status = 'CAPTURED';
-    state.screenshotPath = screenshotPath || join(dir, filename);
+    state.screenshotPath = screenshotPath;
     saveProject(project);
   }
 
@@ -43,7 +45,7 @@ export async function captureEvidence(
     requirementId,
     taskId,
     actionId,
-    screenshotPath: screenshotPath || join(dir, filename),
+    screenshotPath,
     pageUrl: '',
     pageTitle: '',
     description,
