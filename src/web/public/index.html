@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hunarmand Punjab - AI Marketing Agent</title>
+<style>
+:root {
+  --bg-primary: #0f1117;
+  --bg-secondary: #161921;
+  --bg-card: #1c1f2b;
+  --bg-card-hover: #242837;
+  --border: #2a2e3d;
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa0b0;
+  --text-muted: #6b7280;
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --accent-glow: rgba(99,102,241,0.15);
+  --success: #22c55e;
+  --success-bg: rgba(34,197,94,0.1);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245,158,11,0.1);
+  --error: #ef4444;
+  --error-bg: rgba(239,68,68,0.1);
+  --info: #3b82f6;
+  --info-bg: rgba(59,130,246,0.1);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.3);
+  --transition: all 0.2s ease;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  position: fixed;
+  left: 0; top: 0; bottom: 0;
+  width: 240px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+}
+
+.sidebar-brand {
+  padding: 24px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-brand h1 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+.sidebar-brand span {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 2px;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 12px 8px;
+  overflow-y: auto;
+}
+
+.nav-section {
+  margin-bottom: 8px;
+}
+
+.nav-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 8px 12px 4px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.nav-item:hover { background: var(--bg-card); color: var(--text-primary); }
+.nav-item.active { background: var(--accent-glow); color: var(--accent); }
+.nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+.sidebar-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Main Content */
+.main {
+  margin-left: 240px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  height: 64px;
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.topbar-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.topbar-actions { display: flex; gap: 8px; align-items: center; }
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+.btn-secondary { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+.btn-success { background: var(--success); color: white; }
+.btn-danger { background: var(--error); color: white; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn svg { width: 16px; height: 16px; }
+
+/* Cards */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  transition: var(--transition);
+}
+
+.card:hover { border-color: var(--accent); }
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.card-value {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -1px;
+}
+
+.card-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+
+.stat-card.success::before { background: var(--success); }
+.stat-card.warning::before { background: var(--warning); }
+.stat-card.error::before { background: var(--error); }
+.stat-card.info::before { background: var(--info); }
+.stat-card.accent::before { background: var(--accent); }
+
+/* Progress Bar */
+.progress-bar {
+  height: 6px;
+  background: var(--bg-primary);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+/* Task List */
+.task-list { display: flex; flex-direction: column; gap: 8px; }
+
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.task-item:hover { border-color: var(--accent); background: var(--bg-card-hover); }
+
+.task-status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.task-status.SUCCESS { background: var(--success); box-shadow: 0 0 8px var(--success); }
+.task-status.FAILED { background: var(--error); box-shadow: 0 0 8px var(--error); }
+.task-status.EXECUTING { background: var(--warning); box-shadow: 0 0 8px var(--warning); animation: pulse 1.5s infinite; }
+.task-status.PENDING { background: var(--text-muted); }
+.task-status.ACTION_REQUIRED { background: var(--info); box-shadow: 0 0 8px var(--info); }
+.task-status.BLOCKED { background: var(--error); opacity: 0.5; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.task-info { flex: 1; min-width: 0; }
+.task-title { font-size: 14px; font-weight: 500; }
+.task-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+.task-badge {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.task-badge.SUCCESS { background: var(--success-bg); color: var(--success); }
+.task-badge.FAILED { background: var(--error-bg); color: var(--error); }
+.task-badge.EXECUTING { background: var(--warning-bg); color: var(--warning); }
+.task-badge.PENDING { background: rgba(107,114,128,0.1); color: var(--text-muted); }
+.task-badge.ACTION_REQUIRED { background: var(--info-bg); color: var(--info); }
+.task-badge.BLOCKED { background: var(--error-bg); color: var(--error); opacity: 0.7; }
+
+/* Section Tabs */
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+  margin-bottom: 24px;
+  width: fit-content;
+}
+
+.tab {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition);
+  border: none;
+  background: none;
+}
+
+.tab:hover { color: var(--text-secondary); }
+.tab.active { background: var(--accent); color: white; }
+
+/* Section Header */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+/* Filter chips */
+.filter-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  transition: var(--transition);
+}
+
+.chip:hover { border-color: var(--accent); }
+.chip.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 64px 32px;
+  color: var(--text-muted);
+}
+
+.empty-state svg { width: 48px; height: 48px; margin-bottom: 16px; opacity: 0.3; }
+.empty-state h3 { font-size: 16px; margin-bottom: 8px; color: var(--text-secondary); }
+.empty-state p { font-size: 14px; }
+
+/* Toast notifications */
+.toast-container {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  animation: slideIn 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: var(--shadow);
+}
+
+.toast.success { border-color: var(--success); }
+.toast.error { border-color: var(--error); }
+.toast.info { border-color: var(--info); }
+
+@keyframes slideIn {
+  from { transform: translateX(100px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  max-width: 480px;
+  width: 90%;
+  box-shadow: var(--shadow);
+}
+
+.modal h2 { font-size: 18px; margin-bottom: 16px; }
+
+/* Report viewer */
+.report-content {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 20px;
+  font-size: 14px;
+  line-height: 1.8;
+  max-height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+/* Evidence grid */
+.evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.evidence-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+}
+
+.evidence-card img {
+  width: 100%;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar { width: 60px; }
+  .sidebar-brand h1, .sidebar-brand span, .nav-item span, .nav-section-title { display: none; }
+  .nav-item { justify-content: center; padding: 12px; }
+  .main { margin-left: 60px; }
+  .content { padding: 16px; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <h1>Hunarmand Punjab</h1>
+    <span>AI Marketing Agent</span>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">
+      <div class="nav-section-title">Overview</div>
+      <div class="nav-item active" onclick="showView('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        <span>Dashboard</span>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-title">Assignment</div>
+      <div class="nav-item" onclick="showView('tasks')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        <span>Tasks</span>
+      </div>
+      <div class="nav-item" onclick="showView('evidence')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        <span>Evidence</span>
+      </div>
+      <div class="nav-item" onclick="showView('reports')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span>Reports</span>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-title">System</div>
+      <div class="nav-item" onclick="showView('security')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>Security</span>
+      </div>
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div id="connectionStatus" style="display:flex;align-items:center;gap:6px;">
+      <span style="width:6px;height:6px;border-radius:50%;background:var(--success);"></span>
+      Connected
+    </div>
+  </div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+  <header class="topbar">
+    <div class="topbar-title" id="viewTitle">Dashboard</div>
+    <div class="topbar-actions">
+      <button class="btn btn-secondary" onclick="refreshData()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+        Refresh
+      </button>
+      <button class="btn btn-primary" id="runBtn" onclick="showRunModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Run Agent
+      </button>
+    </div>
+  </header>
+
+  <div class="content" id="content">
+    <!-- Populated by JS -->
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toasts"></div>
+
+<!-- Run Modal -->
+<div class="modal-overlay" id="runModal">
+  <div class="modal">
+    <h2>Run Agent</h2>
+    <p style="color:var(--text-secondary);margin-bottom:20px;font-size:14px;">Select which section to execute:</p>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;">
+      <label style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:var(--transition);" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+        <input type="radio" name="section" value="ALL" checked style="accent-color:var(--accent);">
+        <div><div style="font-weight:500;">All Sections</div><div style="font-size:12px;color:var(--text-muted);">Run both Q1 and Q2</div></div>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:var(--transition);" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+        <input type="radio" name="section" value="Q1" style="accent-color:var(--accent);">
+        <div><div style="font-weight:500;">Q1 - Facebook/Meta</div><div style="font-size:12px;color:var(--text-muted);">Business profile, ads, campaigns</div></div>
+      </label>
+      <label style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:var(--transition);" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+        <input type="radio" name="section" value="Q2" style="accent-color:var(--accent);">
+        <div><div style="font-weight:500;">Q2 - LinkedIn</div><div style="font-size:12px;color:var(--text-muted);">Profile, lead gen, outreach</div></div>
+      </label>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="hideRunModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="startRun()">Start Execution</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentView = 'dashboard';
+let projectData = null;
+
+// WebSocket
+let ws;
+function connectWS() {
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${protocol}//${location.host}`);
+
+  ws.onopen = () => {
+    document.getElementById('connectionStatus').innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:var(--success);"></span> Connected';
+  };
+
+  ws.onclose = () => {
+    document.getElementById('connectionStatus').innerHTML = '<span style="width:6px;height:6px;border-radius:50%;background:var(--error);"></span> Disconnected';
+    setTimeout(connectWS, 3000);
+  };
+
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    handleWSMessage(msg);
+  };
+}
+
+function handleWSMessage(msg) {
+  switch(msg.type) {
+    case 'state':
+      projectData = msg.data;
+      renderCurrentView();
+      break;
+    case 'task:start':
+      toast(`Executing: ${msg.data.title || msg.data.taskId}`, 'info');
+      break;
+    case 'task:complete':
+      toast(`Task ${msg.data.status === 'SUCCESS' ? 'completed' : 'failed'}`, msg.data.status === 'SUCCESS' ? 'success' : 'error');
+      refreshData();
+      break;
+    case 'agent:complete':
+      toast('Agent execution complete!', 'success');
+      document.getElementById('runBtn').disabled = false;
+      refreshData();
+      break;
+    case 'agent:error':
+      toast(`Error: ${msg.data.error}`, 'error');
+      document.getElementById('runBtn').disabled = false;
+      break;
+  }
+}
+
+// API
+async function fetchAPI(endpoint) {
+  const res = await fetch(`/api/${endpoint}`);
+  return res.json();
+}
+
+async function refreshData() {
+  const result = await fetchAPI('state');
+  projectData = result.data;
+  renderCurrentView();
+}
+
+// Views
+function showView(view) {
+  currentView = view;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  event.currentTarget?.classList.add('active');
+  const titles = { dashboard: 'Dashboard', tasks: 'Tasks', evidence: 'Evidence', reports: 'Reports', security: 'Security' };
+  document.getElementById('viewTitle').textContent = titles[view] || view;
+  renderCurrentView();
+}
+
+function renderCurrentView() {
+  const content = document.getElementById('content');
+  switch(currentView) {
+    case 'dashboard': content.innerHTML = renderDashboard(); break;
+    case 'tasks': content.innerHTML = renderTasks(); break;
+    case 'evidence': content.innerHTML = renderEvidence(); break;
+    case 'reports': content.innerHTML = renderReports(); break;
+    case 'security': content.innerHTML = renderSecurity(); break;
+  }
+}
+
+function renderDashboard() {
+  const tasks = projectData?.tasks || [];
+  const total = tasks.length;
+  const completed = tasks.filter(t => t.status === 'SUCCESS').length;
+  const failed = tasks.filter(t => t.status === 'FAILED').length;
+  const executing = tasks.filter(t => t.status === 'EXECUTING').length;
+  const pending = tasks.filter(t => t.status === 'PENDING').length;
+  const actionRequired = tasks.filter(t => t.status === 'ACTION_REQUIRED').length;
+  const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  return `
+    <div class="stats-grid">
+      <div class="card stat-card accent">
+        <div class="card-header"><span class="card-title">Total Tasks</span></div>
+        <div class="card-value">${total}</div>
+        <div class="card-subtitle">${projectData?.requirements?.length || 0} requirements</div>
+      </div>
+      <div class="card stat-card success">
+        <div class="card-header"><span class="card-title">Completed</span></div>
+        <div class="card-value" style="color:var(--success)">${completed}</div>
+        <div class="card-subtitle">${progress}% complete</div>
+      </div>
+      <div class="card stat-card error">
+        <div class="card-header"><span class="card-title">Failed</span></div>
+        <div class="card-value" style="color:var(--error)">${failed}</div>
+        <div class="card-subtitle">Needs attention</div>
+      </div>
+      <div class="card stat-card warning">
+        <div class="card-header"><span class="card-title">In Progress</span></div>
+        <div class="card-value" style="color:var(--warning)">${executing + actionRequired}</div>
+        <div class="card-subtitle">${executing} running, ${actionRequired} waiting</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:24px;">
+      <div class="card-header">
+        <span class="card-title">Overall Progress</span>
+        <span style="font-size:14px;font-weight:600;">${progress}%</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width:${progress}%"></div>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <h2 class="section-title">Recent Tasks</h2>
+    </div>
+    <div class="task-list">
+      ${tasks.slice(0, 8).map(t => renderTaskItem(t)).join('')}
+      ${tasks.length === 0 ? '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><h3>No tasks yet</h3><p>Click "Run Agent" to get started</p></div>' : ''}
+    </div>
+  `;
+}
+
+function renderTasks() {
+  const tasks = projectData?.tasks || [];
+  const [filter, setFilter] = ['ALL'];
+
+  return `
+    <div class="section-header">
+      <h2 class="section-title">All Tasks</h2>
+      <div class="filter-chips">
+        <span class="chip active" onclick="filterTasks('ALL', this)">All (${tasks.length})</span>
+        <span class="chip" onclick="filterTasks('SUCCESS', this)">Completed (${tasks.filter(t=>t.status==='SUCCESS').length})</span>
+        <span class="chip" onclick="filterTasks('EXECUTING', this)">Running (${tasks.filter(t=>t.status==='EXECUTING').length})</span>
+        <span class="chip" onclick="filterTasks('PENDING', this)">Pending (${tasks.filter(t=>t.status==='PENDING').length})</span>
+        <span class="chip" onclick="filterTasks('FAILED', this)">Failed (${tasks.filter(t=>t.status==='FAILED').length})</span>
+      </div>
+    </div>
+    <div class="task-list" id="taskList">
+      ${tasks.map(t => renderTaskItem(t)).join('')}
+      ${tasks.length === 0 ? '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><h3>No tasks</h3><p>Run the agent to generate tasks</p></div>' : ''}
+    </div>
+  `;
+}
+
+function renderTaskItem(t) {
+  const statusClass = t.status || 'PENDING';
+  const labels = {
+    SUCCESS: 'Completed',
+    FAILED: 'Failed',
+    EXECUTING: 'Running',
+    PENDING: 'Pending',
+    ACTION_REQUIRED: 'Action Required',
+    BLOCKED: 'Blocked'
+  };
+  return `
+    <div class="task-item">
+      <div class="task-status ${statusClass}"></div>
+      <div class="task-info">
+        <div class="task-title">${t.title}</div>
+        <div class="task-desc">${t.description || ''}</div>
+      </div>
+      <span class="task-badge ${statusClass}">${labels[statusClass] || statusClass}</span>
+    </div>
+  `;
+}
+
+function filterTasks(filter, el) {
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  const tasks = projectData?.tasks || [];
+  const filtered = filter === 'ALL' ? tasks : tasks.filter(t => t.status === filter);
+  document.getElementById('taskList').innerHTML = filtered.map(t => renderTaskItem(t)).join('');
+}
+
+function renderEvidence() {
+  const evidence = projectData?.evidence || [];
+  return `
+    <div class="section-header">
+      <h2 class="section-title">Evidence Collection</h2>
+      <span style="color:var(--text-muted);font-size:14px;">${evidence.length} items</span>
+    </div>
+    <div class="evidence-grid">
+      ${evidence.map(e => `
+        <div class="evidence-card">
+          ${e.screenshot ? `<img src="${e.screenshot}" alt="Evidence">` : ''}
+          <div style="font-weight:500;margin-bottom:4px;">${e.taskTitle || e.taskId}</div>
+          <div style="font-size:12px;color:var(--text-muted);">${e.verification?.passed ? '✓ Verified' : '✗ Failed'}</div>
+        </div>
+      `).join('')}
+      ${evidence.length === 0 ? '<div class="empty-state" style="grid-column:1/-1;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg><h3>No evidence yet</h3><p>Evidence is captured during task execution</p></div>' : ''}
+    </div>
+  `;
+}
+
+function renderReports() {
+  return `
+    <div class="section-header">
+      <h2 class="section-title">Reports</h2>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Assignment Status</span>
+      </div>
+      <div style="padding:12px 0;color:var(--text-secondary);font-size:14px;">
+        ${projectData ? `Project: ${projectData.name || 'Untitled'}<br>Status: ${projectData.status || 'Unknown'}` : 'No project data available'}
+      </div>
+    </div>
+  `;
+}
+
+function renderSecurity() {
+  return `
+    <div class="section-header">
+      <h2 class="section-title">Security Audit</h2>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Security Status</span></div>
+      <div style="padding:12px 0;color:var(--text-secondary);font-size:14px;">
+        Run <code style="background:var(--bg-primary);padding:2px 6px;border-radius:4px;">npm run agent:security</code> to perform a security audit.
+      </div>
+    </div>
+  `;
+}
+
+// Modals
+function showRunModal() { document.getElementById('runModal').classList.add('active'); }
+function hideRunModal() { document.getElementById('runModal').classList.remove('active'); }
+
+async function startRun() {
+  const section = document.querySelector('input[name="section"]:checked').value;
+  hideRunModal();
+  document.getElementById('runBtn').disabled = true;
+  toast('Starting agent...', 'info');
+
+  try {
+    await fetch('/api/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ section, mode: 'DEMO_MODE' })
+    });
+  } catch(e) {
+    toast('Failed to start agent', 'error');
+    document.getElementById('runBtn').disabled = false;
+  }
+}
+
+// Toast
+function toast(msg, type = 'info') {
+  const container = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+// Init
+connectWS();
+refreshData();
+</script>
+</body>
+</html>
