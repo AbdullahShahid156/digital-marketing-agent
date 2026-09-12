@@ -12,6 +12,7 @@ import { ALL_REQUIREMENTS } from '../modules/requirements/assignment.js';
 import { getBrowserManager, setBrowserManager } from './browser-manager.js';
 import { registerBrowserTools } from '../tools/browser-tools.js';
 import { logger } from './logger.js';
+import { runSecurityAudit, hasCriticalSecurityIssues, getSecurityScore } from '../modules/security/auditor.js';
 
 export interface StepResult {
   stepName: string;
@@ -440,6 +441,18 @@ export class Orchestrator {
     const project = this.getProject();
 
     logger.info('Orchestrator', `Starting project execution in ${mode} mode`);
+
+    // Run security audit before execution
+    const securityChecks = runSecurityAudit(process.cwd());
+    const securityScore = getSecurityScore(securityChecks);
+    const hasCritical = hasCriticalSecurityIssues(securityChecks);
+
+    if (hasCritical) {
+      logger.warn('Orchestrator', 'Critical security issues detected - review recommended');
+      this.printLog(`Security Score: ${securityScore}/100 - Critical issues found`);
+    } else {
+      logger.info('Orchestrator', `Security audit passed: ${securityScore}/100`);
+    }
 
     if (mode === 'LIVE_MODE') {
       this.printLog('LIVE_MODE: Initializing browser...');

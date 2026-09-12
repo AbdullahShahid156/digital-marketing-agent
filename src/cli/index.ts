@@ -21,7 +21,7 @@ export interface CLIOptions {
   json?: boolean;
 }
 
-export type CLICommand = 'run' | 'status' | 'report' | 'tasks' | 'help' | 'version';
+export type CLICommand = 'run' | 'status' | 'report' | 'tasks' | 'security' | 'help' | 'version';
 
 export interface ParsedCLI {
   command: CLICommand;
@@ -34,6 +34,7 @@ const COMMANDS: Record<CLICommand, string> = {
   status: 'Show current project progress',
   report: 'Generate assignment report',
   tasks: 'List all tasks with status',
+  security: 'Run security audit',
   help: 'Show help message',
   version: 'Show version info',
 };
@@ -309,7 +310,7 @@ export async function executeRun(options: CLIOptions, input?: string): Promise<v
   let resume = options.resume || false;
 
   if (input) {
-    const parsed = parseNaturalLanguage(input);
+    const parsed = await parseNaturalLanguage(input);
     mode = parsed.mode;
     section = parsed.section;
     resume = parsed.resume;
@@ -382,6 +383,24 @@ export async function executeRun(options: CLIOptions, input?: string): Promise<v
   }
 }
 
+export async function executeSecurity(options: CLIOptions): Promise<void> {
+  const { runSecurityAudit, generateSecurityReport, getSecurityScore } = await import('../modules/security/auditor.js');
+
+  const checks = runSecurityAudit(process.cwd());
+  const score = getSecurityScore(checks);
+
+  if (options.json) {
+    console.log(JSON.stringify({ checks, score }, null, 2));
+    return;
+  }
+
+  const useLLM = options.verbose || false;
+  const report = await generateSecurityReport(checks, useLLM);
+
+  printCLIBanner();
+  console.log(report);
+}
+
 export async function runCLI(argv: string[]): Promise<void> {
   const parsed = parseCLIArgs(argv);
 
@@ -400,6 +419,9 @@ export async function runCLI(argv: string[]): Promise<void> {
       break;
     case 'report':
       await executeReport(parsed.options);
+      break;
+    case 'security':
+      await executeSecurity(parsed.options);
       break;
     case 'run':
       await executeRun(parsed.options, parsed.args.join(' '));

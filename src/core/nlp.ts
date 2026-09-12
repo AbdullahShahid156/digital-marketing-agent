@@ -1,4 +1,6 @@
 import type { AgentMode } from '../types/index.js';
+import { generateText, isLLMConfigured } from './llm.js';
+import { logger } from './logger.js';
 
 export interface ParsedRequest {
   section: 'Q1' | 'Q2' | 'ALL';
@@ -22,9 +24,69 @@ const RESUME_KEYWORDS = ['resume', 'continue', 'restart', 'pick up', 'where left
 
 const ALL_KEYWORDS = ['all', 'everything', 'both', 'full assignment', 'entire', 'whole'];
 
-export function parseNaturalLanguage(input: string): ParsedRequest {
+export async function parseNaturalLanguage(input: string): Promise<ParsedRequest> {
   const lower = input.toLowerCase().trim();
 
+  // Try LLM-based parsing first
+  if (isLLMConfigured() && input.length > 5) {
+    try {
+      const parsed = await parseWithLLM(input);
+      if (parsed.confidence > 0.7) {
+        return parsed;
+      }
+    } catch (err) {
+      logger.warn('NLP', `LLM parsing failed, falling back to keyword matching: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  }
+
+  // Fallback to keyword matching
+  return parseWithKeywords(lower);
+}
+
+async function parseWithLLM(input: string): Promise<ParsedRequest> {
+  const prompt = `Parse this user request into structured data. Return ONLY valid JSON, no explanation.
+
+User input: "${input}"
+
+Return JSON with these fields:
+{
+  "section": "Q1" | "Q2" | "ALL",
+  "mode": "DEMO_MODE" | "LIVE_MODE",
+  "resume": boolean,
+  "intent": "execute" | "help" | "status" | "report" | "evidence" | "security",
+  "confidence": number (0-1)
+}
+
+Rules:
+- Q1 = Facebook/Meta tasks, Q2 = LinkedIn tasks, ALL = both
+- LIVE_MODE = real browser actions, DEMO_MODE = simulated
+- resume = true if user wants to continue from where they left off
+- intent = what the user wants to do
+- confidence = how confident you are in the parsing (0-1)`;
+
+  const response = await generateText(
+    prompt,
+    'You are an NLP parser. Return only valid JSON.',
+    { temperature: 0.1, maxTokens: 300 }
+  );
+
+  const jsonMatch = response.content.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error('No JSON found in LLM response');
+  }
+
+  const parsed = JSON.parse(jsonMatch[0]);
+
+  return {
+    section: ['Q1', 'Q2', 'ALL'].includes(parsed.section) ? parsed.section : 'ALL',
+    mode: parsed.mode === 'LIVE_MODE' ? 'LIVE_MODE' : 'DEMO_MODE',
+    resume: Boolean(parsed.resume),
+    intent: parsed.intent || 'execute',
+    confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0.8,
+  };
+}
+
+function parseWithKeywords(lower: string): ParsedRequest {
   const resume = RESUME_KEYWORDS.some(k => lower.includes(k));
 
   let section: 'Q1' | 'Q2' | 'ALL' = 'ALL';
@@ -59,6 +121,8 @@ export function parseNaturalLanguage(input: string): ParsedRequest {
     intent = 'report';
   } else if (lower.includes('evidence')) {
     intent = 'evidence';
+  } else if (lower.includes('security') || lower.includes('audit')) {
+    intent = 'security';
   }
 
   return { section, mode, resume, intent, confidence };
@@ -69,6 +133,8 @@ export function formatDetectedPlan(parsed: ParsedRequest): string {
   lines.push('Detected:');
   lines.push(`  Section: ${parsed.section === 'ALL' ? 'Q1 + Q2 (Full Assignment)' : parsed.section === 'Q1' ? 'Q1 Facebook/Meta' : 'Q2 LinkedIn'}`);
   lines.push(`  Mode: ${parsed.mode}`);
+  lines.push(`  Intent: ${parsed.intent}`);
   if (parsed.resume) lines.push('  Resume: Yes');
+  lines.push(`  Confidence: ${(parsed.confidence * 100).toFixed(0)}%`);
   return lines.join('\n');
 }

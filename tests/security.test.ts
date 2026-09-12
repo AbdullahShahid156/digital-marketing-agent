@@ -28,9 +28,9 @@ describe('Security Auditor', () => {
     expect(checks.length).toBeGreaterThan(0);
   });
 
-  it('should generate security report', () => {
+  it('should generate security report', async () => {
     const checks = runSecurityAudit(TEST_DIR);
-    const report = generateSecurityReport(checks);
+    const report = await generateSecurityReport(checks);
     expect(report).toContain('# Security Audit Report');
   });
 

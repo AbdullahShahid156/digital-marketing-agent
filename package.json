@@ -22,7 +22,8 @@
     "agent:q2": "tsx src/agent.ts run --section Q2",
     "agent:status": "tsx src/agent.ts status",
     "agent:report": "tsx src/agent.ts report",
-    "agent:tasks": "tsx src/agent.ts tasks"
+    "agent:tasks": "tsx src/agent.ts tasks",
+    "agent:security": "tsx src/agent.ts security"
   },
   "keywords": [
     "digital-marketing",

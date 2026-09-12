@@ -1,2 +1,2 @@
-export { runSecurityAudit, generateSecurityReport } from './auditor.js';
-export type { SecurityCheck } from './auditor.js';
+export { runSecurityAudit, generateSecurityReport, getSecurityScore, hasCriticalSecurityIssues } from './auditor.js';
+export type { SecurityCheck, SecurityAuditReport } from './auditor.js';
