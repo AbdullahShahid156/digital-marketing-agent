@@ -111,10 +111,10 @@ export function updateConfig(partial: Partial<AgentConfig>): AgentConfig {
 
 function mergeConfig(base: AgentConfig, override: Partial<AgentConfig>): AgentConfig {
   return {
-    browser: { ...base.browser, ...override.browser },
-    execution: { ...base.execution, ...override.execution },
-    evidence: { ...base.evidence, ...override.evidence },
-    llm: { ...base.llm, ...override.llm },
-    logging: { ...base.logging, ...override.logging },
+    browser: { ...base.browser, ...(override.browser || {}), viewport: { ...(base.browser.viewport), ...((override.browser as any)?.viewport || {}) } },
+    execution: { ...base.execution, ...(override.execution || {}) },
+    evidence: { ...base.evidence, ...(override.evidence || {}) },
+    llm: { ...base.llm, ...(override.llm || {}) },
+    logging: { ...base.logging, ...(override.logging || {}) },
   };
 }

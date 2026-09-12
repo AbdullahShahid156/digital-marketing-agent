@@ -61,7 +61,7 @@ app.get('/api/state', (_req, res) => {
 app.get('/api/tasks', (_req, res) => {
   try {
     const project = loadProject();
-    res.json({ success: true, data: project.tasks });
+    res.json({ success: true, data: project?.tasks || [] });
   } catch {
     res.json({ success: true, data: [] });
   }
@@ -70,7 +70,7 @@ app.get('/api/tasks', (_req, res) => {
 app.get('/api/evidence', (_req, res) => {
   try {
     const project = loadProject();
-    res.json({ success: true, data: project.evidence });
+    res.json({ success: true, data: project?.evidence || [] });
   } catch {
     res.json({ success: true, data: [] });
   }
@@ -79,7 +79,7 @@ app.get('/api/evidence', (_req, res) => {
 app.get('/api/requirements', (_req, res) => {
   try {
     const project = loadProject();
-    res.json({ success: true, data: project.requirements });
+    res.json({ success: true, data: project?.requirements || [] });
   } catch {
     res.json({ success: true, data: [] });
   }
@@ -122,9 +122,12 @@ app.post('/api/run', async (req, res) => {
     return res.status(409).json({ success: false, error: 'Agent already running' });
   }
 
-  const { section = 'ALL', mode = 'DEMO_MODE' } = req.body || {};
+  // Atomic check-and-set
   isRunning = true;
   currentAbortController = new AbortController();
+  const abortSignal = currentAbortController.signal;
+
+  const { section = 'ALL', mode = 'DEMO_MODE' } = req.body || {};
 
   broadcast({ type: 'agent:start', data: { section, mode } });
 
@@ -162,7 +165,7 @@ app.post('/api/run', async (req, res) => {
     let failedCount = 0;
     let actionRequiredCount = 0;
 
-    while (iteration < maxIterations) {
+    while (iteration < maxIterations && !abortSignal.aborted) {
       iteration++;
       const runnableTasks = getNextRunnableTasks(project);
 
@@ -195,7 +198,7 @@ app.post('/api/run', async (req, res) => {
       }
 
       for (const task of runnableTasks) {
-        if (currentAbortController?.signal.aborted) {
+        if (abortSignal.aborted) {
           broadcast({ type: 'agent:cancelled', data: {} });
           break;
         }

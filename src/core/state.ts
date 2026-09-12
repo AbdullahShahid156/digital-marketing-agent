@@ -76,6 +76,18 @@ export function loadProject(): Project | null {
     const project = JSON.parse(raw) as Project;
     project.createdAt = new Date(project.createdAt);
     project.updatedAt = new Date(project.updatedAt);
+
+    // Reconstitute dates in tasks
+    for (const task of project.tasks) {
+      task.createdAt = new Date(task.createdAt);
+      task.updatedAt = new Date(task.updatedAt);
+    }
+
+    // Reconstitute dates in evidence
+    for (const ev of project.evidence) {
+      ev.capturedAt = new Date(ev.capturedAt);
+    }
+
     logger.info('State', `Loaded project: ${project.name}`);
     return project;
   } catch (error) {

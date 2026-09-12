@@ -1,4 +1,4 @@
-import type { Project, Campaign, AdSet, Ad, AgentAction, AgentMode } from '../../types/index.js';
+import type { Project, Campaign, AdSet, Ad, AgentAction, AgentMode, ContentCalendarItem } from '../../types/index.js';
 import { saveProject } from '../../core/state.js';
 import { logger } from '../../core/logger.js';
 import { ActionExecutor } from '../../core/action-executor.js';
@@ -39,17 +39,6 @@ export interface MetaBusinessSuite {
   autoReplyMessage: string;
   contentScheduler: boolean;
   weeklyContentPlan: string[];
-}
-
-export interface ContentCalendarItem {
-  id: string;
-  date: string;
-  platform: string;
-  contentType: string;
-  topic: string;
-  copy: string;
-  hashtags: string[];
-  status: 'PLANNED' | 'DRAFTED' | 'SCHEDULED' | 'PUBLISHED';
 }
 
 export function createFacebookCampaign(
@@ -198,7 +187,7 @@ export function generateContentCalendar(project: Project, days: number = 30): Co
 
     calendar.push({
       id: crypto.randomUUID(),
-      date: date.toISOString().split('T')[0],
+      date: date,
       platform: 'Facebook',
       contentType: contentTypes[i % contentTypes.length],
       topic: topics[i % topics.length],

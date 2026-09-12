@@ -110,7 +110,7 @@ function parseWithKeywords(lower: string): ParsedRequest {
   }
 
   const maxScore = Math.max(q1Score, q2Score, allScore);
-  const confidence = Math.min(1, maxScore * 0.3 + 0.4);
+  const confidence = maxScore > 0 ? Math.min(1, maxScore * 0.3 + 0.4) : 0.1;
 
   let intent = 'execute';
   if (lower.includes('help') || lower.includes('what can')) {

@@ -773,8 +773,23 @@ function getDefaultProject(): Project {
       location: 'Lahore, Pakistan',
       description: 'Full-stack digital marketing services',
       website: 'https://www.hunarmand.pk',
+      targetMarket: [],
+      competitors: [],
+      uniqueSellingProposition: '',
+      brandVoice: 'Professional',
+      marketingObjectives: [],
     },
-  } as Project;
+    requirements: [],
+    tasks: [],
+    campaigns: [],
+    content: [],
+    prospects: [],
+    outreach: [],
+    evidence: [],
+    status: 'INITIALIZING',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 }
 
 export function optimizeLinkedInProfile(

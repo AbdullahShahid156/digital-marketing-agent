@@ -203,7 +203,7 @@ export class BrowserManager {
   async navigate(url: string): Promise<void> {
     await this.ensureHealthy();
     const page = this.getPage();
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: this.config.browser.timeout });
     this.updateActivity();
     logger.info('BrowserManager', `Navigated to: ${url}`);
   }
@@ -271,7 +271,7 @@ export class BrowserManager {
   async click(selector: string): Promise<void> {
     await this.ensureHealthy();
     const page = this.getPage();
-    await page.click(selector, { timeout: 10000 });
+    await page.click(selector, { timeout: this.config.browser.timeout });
     this.updateActivity();
     logger.info('BrowserManager', `Clicked: ${selector}`);
   }
@@ -279,7 +279,7 @@ export class BrowserManager {
   async fill(selector: string, value: string): Promise<void> {
     await this.ensureHealthy();
     const page = this.getPage();
-    await page.fill(selector, value, { timeout: 10000 });
+    await page.fill(selector, value, { timeout: this.config.browser.timeout });
     this.updateActivity();
     logger.info('BrowserManager', `Filled: ${selector}`);
   }
@@ -287,7 +287,7 @@ export class BrowserManager {
   async selectOption(selector: string, value: string): Promise<void> {
     await this.ensureHealthy();
     const page = this.getPage();
-    await page.selectOption(selector, value, { timeout: 10000 });
+    await page.selectOption(selector, value, { timeout: this.config.browser.timeout });
     this.updateActivity();
     logger.info('BrowserManager', `Selected: ${selector} = ${value}`);
   }
@@ -295,7 +295,7 @@ export class BrowserManager {
   async waitForSelector(selector: string, timeout?: number): Promise<void> {
     await this.ensureHealthy();
     const page = this.getPage();
-    await page.waitForSelector(selector, { timeout: timeout || 10000 });
+    await page.waitForSelector(selector, { timeout: timeout || this.config.browser.timeout });
     this.updateActivity();
   }
 
@@ -388,6 +388,8 @@ let globalManager: BrowserManager | null = null;
 export function getBrowserManager(options?: BrowserManagerOptions): BrowserManager {
   if (!globalManager || !globalManager.isLaunched()) {
     globalManager = new BrowserManager(options);
+  } else if (options) {
+    logger.debug('BrowserManager', 'Browser already launched, ignoring new options');
   }
   return globalManager;
 }

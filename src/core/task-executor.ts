@@ -6,12 +6,12 @@ import type {
 } from '../types/index.js';
 import { ActionExecutor } from './action-executor.js';
 import { getBrowserManager } from './browser-manager.js';
-import { verifyPageState, createTextVisibleCheck, createUrlCheck } from './verification-engine.js';
+import { verifyPageState, createTextVisibleCheck } from './verification-engine.js';
 import { captureEvidence } from './evidence-manager.js';
 import { logger } from './logger.js';
 import { updateTaskState } from './task-manager.js';
 import { saveProject } from './state.js';
-import { toolRegistry } from '../tools/registry.js';
+
 import {
   createBusinessProfile,
   updateFourPs,
@@ -86,12 +86,16 @@ export class TaskExecutor {
 
       try {
         // Apply timeout
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => reject(new Error(`Task timed out after ${this.taskTimeout}ms`)), this.taskTimeout);
+          timeoutId = setTimeout(() => reject(new Error(`Task timed out after ${this.taskTimeout}ms`)), this.taskTimeout);
         });
 
         const executionPromise = this.executeTaskInternal(project, task, result);
         await Promise.race([executionPromise, timeoutPromise]);
+
+        // Clear timeout on success
+        if (timeoutId) clearTimeout(timeoutId);
 
         // If we got here, execution succeeded
         return result;
@@ -799,13 +803,13 @@ export class TaskExecutor {
         case 'business':
           return this.executeBusinessStep(project, task, step, action);
         case 'marketing':
-          return this.executeMarketingStep(project, task, step, action);
+          return await this.executeMarketingStep(project, task, step, action);
         case 'meta':
           return this.executeMetaStep(project, task, step, action);
         case 'linkedin':
           return this.executeLinkedInStep(project, task, step, action);
         case 'content':
-          return this.executeContentStep(project, task, step, action);
+          return await this.executeContentStep(project, task, step, action);
         case 'reports':
           return this.executeReportStep(project, task, step, action);
         default:
@@ -864,7 +868,7 @@ export class TaskExecutor {
     }
   }
 
-  private executeMarketingStep(project: Project, _task: Task, step: ActionPlanStep, action: AgentAction): ActionResult {
+  private async executeMarketingStep(project: Project, _task: Task, step: ActionPlanStep, action: AgentAction): Promise<ActionResult> {
     switch (step.action) {
       case 'create_strategy': {
         const strategy = createMarketingStrategy(project, {
@@ -881,7 +885,7 @@ export class TaskExecutor {
         return { success: !!strategy, actionId: action.id, observedState: strategy };
       }
       case 'generate_swot': {
-        const swot = generateSWOTAnalysis(project);
+        const swot = await generateSWOTAnalysis(project);
         return { success: !!swot, actionId: action.id, observedState: swot };
       }
       default:
@@ -972,10 +976,10 @@ export class TaskExecutor {
     }
   }
 
-  private executeContentStep(project: Project, _task: Task, step: ActionPlanStep, action: AgentAction): ActionResult {
+  private async executeContentStep(project: Project, _task: Task, step: ActionPlanStep, action: AgentAction): Promise<ActionResult> {
     switch (step.action) {
       case 'generate_calendar': {
-        const items = generateContentCalendarModule(project, 'Facebook', 7);
+        const items = await generateContentCalendarModule(project, 'Facebook', 7);
         return { success: items.length > 0, actionId: action.id, observedState: items };
       }
       default:
@@ -1014,7 +1018,7 @@ export class TaskExecutor {
         randomUUID(),
         ev.title,
         ev.description,
-        this.getTaskSection(task) as 'q1' | 'q2',
+        this.getTaskSection(task),
       );
       return capture?.screenshotPath ?? null;
     } catch {
@@ -1022,10 +1026,10 @@ export class TaskExecutor {
     }
   }
 
-  private getTaskSection(task: Task): string {
+  private getTaskSection(task: Task): 'q1' | 'q2' {
     if (task.requirementId.startsWith('Q1')) return 'q1';
     if (task.requirementId.startsWith('Q2')) return 'q2';
-    return 'general';
+    return 'q1'; // default fallback
   }
 
   private generateUserInstruction(task: Task): string {

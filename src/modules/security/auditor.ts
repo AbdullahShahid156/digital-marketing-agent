@@ -211,7 +211,7 @@ export async function generateSecurityReport(
   const passed = checks.filter(c => c.status === 'PASS').length;
   const failed = checks.filter(c => c.status === 'FAIL').length;
   const warnings = checks.filter(c => c.status === 'WARNING').length;
-  const score = Math.round((passed / checks.length) * 100);
+  const score = checks.length > 0 ? Math.round((passed / checks.length) * 100) : 0;
 
   if (useLLM && isLLMConfigured()) {
     try {
