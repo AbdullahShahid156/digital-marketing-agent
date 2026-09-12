@@ -1,6 +1,7 @@
 import type { Project } from '../../types/index.js';
 import { saveProject } from '../../core/state.js';
 import { logger } from '../../core/logger.js';
+import { generateText, isLLMConfigured } from '../../core/llm.js';
 
 export interface MarketingStrategy {
   id: string;
@@ -56,17 +57,52 @@ export function createMarketingStrategy(
   return newStrategy;
 }
 
-export function generateSWOTAnalysis(project: Project): {
+export async function generateSWOTAnalysis(project: Project): Promise<{
   strengths: string[];
   weaknesses: string[];
   opportunities: string[];
   threats: string[];
-} | null {
+} | null> {
   if (!project.business) {
     return null;
   }
 
   const b = project.business;
+
+  if (isLLMConfigured()) {
+    try {
+      const prompt = `Generate a SWOT analysis for this business:
+Name: ${b.name}
+Industry: ${b.industry}
+Location: ${b.location}
+USP: ${b.usp || 'Not defined'}
+Target Market: ${b.targetMarket.join(', ')}
+
+Return JSON format with arrays for strengths, weaknesses, opportunities, threats. Each item should be a concise string.`;
+
+      const response = await generateText(
+        prompt,
+        'You are a marketing strategist. Return only valid JSON, no markdown.',
+        { temperature: 0.7, maxTokens: 800 }
+      );
+
+      const jsonMatch = response.content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.strengths && parsed.weaknesses && parsed.opportunities && parsed.threats) {
+          return {
+            strengths: Array.isArray(parsed.strengths) ? parsed.strengths.slice(0, 5) : [],
+            weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses.slice(0, 5) : [],
+            opportunities: Array.isArray(parsed.opportunities) ? parsed.opportunities.slice(0, 5) : [],
+            threats: Array.isArray(parsed.threats) ? parsed.threats.slice(0, 5) : [],
+          };
+        }
+      }
+    } catch (err) {
+      logger.warn('MarketingStrategy', `LLM SWOT generation failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  }
+
   return {
     strengths: [
       `${b.industry} expertise`,
@@ -91,12 +127,46 @@ export function generateSWOTAnalysis(project: Project): {
   };
 }
 
-export function generateMarketingPlan(project: Project): string {
+export async function generateMarketingPlan(project: Project): Promise<string> {
   if (!project.business) {
     return 'No business profile available for marketing plan.';
   }
 
   const b = project.business;
+
+  if (isLLMConfigured()) {
+    try {
+      const prompt = `Create a comprehensive marketing strategy plan for:
+Business: ${b.name}
+Industry: ${b.industry}
+Location: ${b.location}
+Target Market: ${b.targetMarket.join(', ')}
+USP: ${b.usp || 'Not defined'}
+
+Include sections for:
+1. Executive Summary
+2. Target Audience
+3. Value Proposition
+4. Marketing Channels (recommend specific channels)
+5. Content Pillars (4-5 themes)
+6. KPIs (5-7 metrics)
+7. Budget Allocation (percentages)
+8. Timeline/Implementation Plan
+
+Format as markdown with headers.`;
+
+      const response = await generateText(
+        prompt,
+        'You are a senior marketing strategist creating a professional marketing plan.',
+        { temperature: 0.7, maxTokens: 2000 }
+      );
+
+      return response.content;
+    } catch (err) {
+      logger.warn('MarketingStrategy', `LLM plan generation failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  }
+
   const lines: string[] = [
     '# Marketing Strategy Plan',
     '',

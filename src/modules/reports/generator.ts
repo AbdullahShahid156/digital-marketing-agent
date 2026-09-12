@@ -1,6 +1,7 @@
 import type { Project, EvidenceItem, Task } from '../../types/index.js';
 import { runQAAudit, isProjectVerified } from '../qa/validator.js';
 import { logger } from '../../core/logger.js';
+import { generateText, isLLMConfigured } from '../../core/llm.js';
 import { join } from 'node:path';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 
@@ -38,7 +39,7 @@ export interface AssignmentReport {
   };
 }
 
-export function generateAssignmentReport(project: Project): AssignmentReport {
+export async function generateAssignmentReport(project: Project): Promise<AssignmentReport> {
   const sections: ReportSection[] = [];
   const qaReport = runQAAudit(project);
 
@@ -62,7 +63,7 @@ export function generateAssignmentReport(project: Project): AssignmentReport {
 
   sections.push({
     title: 'Executive Summary',
-    content: generateExecutiveSummary(project, completedTasks, totalTasks),
+    content: await generateExecutiveSummary(project, completedTasks, totalTasks),
     evidence: [],
   });
 
@@ -130,11 +131,43 @@ export function generateAssignmentReport(project: Project): AssignmentReport {
   };
 }
 
-function generateExecutiveSummary(
+async function generateExecutiveSummary(
   project: Project,
   completedTasks: number,
   totalTasks: number
-): string {
+): Promise<string> {
+  const completionPct = totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(1) : '0';
+
+  if (isLLMConfigured()) {
+    try {
+      const prompt = `Write an executive summary for a digital marketing assignment report:
+Project: ${project.name}
+Business: ${project.business?.name || 'N/A'}
+Industry: ${project.business?.industry || 'N/A'}
+Total Tasks: ${totalTasks}
+Completed: ${completedTasks}
+Completion: ${completionPct}%
+
+Include:
+1. Brief project overview
+2. Assignment sections (Q1: Facebook/Meta, Q2: LinkedIn)
+3. Current progress summary
+4. Key accomplishments
+
+Keep it professional, 200-300 words, markdown format.`;
+
+      const response = await generateText(
+        prompt,
+        'You are a professional report writer creating an executive summary.',
+        { temperature: 0.7, maxTokens: 800 }
+      );
+
+      return response.content;
+    } catch (err) {
+      logger.warn('Reports', `LLM summary generation failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  }
+
   const lines: string[] = [];
   lines.push(`Project: ${project.name}`);
   lines.push('');
@@ -147,7 +180,7 @@ function generateExecutiveSummary(
   lines.push('## Progress');
   lines.push(`- Total Tasks: ${totalTasks}`);
   lines.push(`- Completed: ${completedTasks}`);
-  lines.push(`- Completion: ${totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(1) : 0}%`);
+  lines.push(`- Completion: ${completionPct}%`);
   return lines.join('\n');
 }
 
@@ -303,7 +336,7 @@ function generateEvidenceSection(project: Project): string {
   return lines.join('\n');
 }
 
-export function generateFinalReport(project: Project): AssignmentReport {
+export async function generateFinalReport(project: Project): Promise<AssignmentReport> {
   return generateAssignmentReport(project);
 }
 

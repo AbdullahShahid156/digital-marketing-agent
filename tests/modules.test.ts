@@ -263,18 +263,18 @@ describe('Content Planner', () => {
     safeRmSync(join(TEST_DATA_DIR, 'project.json.tmp'));
   });
 
-  it('should generate content calendar', () => {
-    const calendar = genContentCalendar(project, 'Facebook', 7);
+  it('should generate content calendar', async () => {
+    const calendar = await genContentCalendar(project, 'Facebook', 7);
     expect(calendar).toHaveLength(7);
   });
 
-  it('should generate content pillars', () => {
-    const pillars = generateContentPillars('Technology');
+  it('should generate content pillars', async () => {
+    const pillars = await generateContentPillars('Technology');
     expect(pillars.length).toBeGreaterThan(0);
   });
 
-  it('should generate hashtags', () => {
-    const hashtags = generateHashtags('Technology', 'Lahore');
+  it('should generate hashtags', async () => {
+    const hashtags = await generateHashtags('Technology', 'Lahore');
     expect(hashtags.length).toBeGreaterThan(0);
     expect(hashtags).toContain('#Lahore');
   });
@@ -345,8 +345,8 @@ describe('Outreach Engine', () => {
     expect(message.status).toBe('DRAFT');
   });
 
-  it('should generate outreach templates', () => {
-    const templates = generateOutreachTemplates();
+  it('should generate outreach templates', async () => {
+    const templates = await generateOutreachTemplates();
     expect(Object.keys(templates).length).toBeGreaterThan(0);
   });
 });

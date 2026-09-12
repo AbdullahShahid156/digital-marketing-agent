@@ -69,17 +69,17 @@ describe('Marketing Strategy', () => {
     expect(strategy).toBeNull();
   });
 
-  it('should generate SWOT analysis', () => {
+  it('should generate SWOT analysis', async () => {
     createBusinessProfile(project, 'Test', 'Technology', 'Lahore', 'Desc');
-    const swot = generateSWOTAnalysis(project);
+    const swot = await generateSWOTAnalysis(project);
     expect(swot).toBeDefined();
-    expect(swot!.strengths).toHaveLength(3);
-    expect(swot!.opportunities).toHaveLength(3);
+    expect(swot!.strengths.length).toBeGreaterThan(0);
+    expect(swot!.opportunities.length).toBeGreaterThan(0);
   });
 
-  it('should generate marketing plan', () => {
+  it('should generate marketing plan', async () => {
     createBusinessProfile(project, 'Test', 'Tech', 'Lahore', 'Desc');
-    const plan = generateMarketingPlan(project);
+    const plan = await generateMarketingPlan(project);
     expect(plan).toContain('Marketing Strategy Plan');
     expect(plan).toContain('Test');
   });
