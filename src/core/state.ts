@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Project } from '../types/index.js';
 import { logger } from './logger.js';
@@ -36,7 +36,6 @@ function cleanupOldBackups(): void {
     if (files.length > MAX_BACKUPS) {
       const filesToDelete = files.slice(0, files.length - MAX_BACKUPS);
       for (const file of filesToDelete) {
-        const { unlinkSync } = require('node:fs');
         unlinkSync(join(HISTORY_DIR, file));
         logger.debug('State', `Cleaned up old backup: ${file}`);
       }
