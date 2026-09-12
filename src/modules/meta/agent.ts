@@ -197,6 +197,10 @@ export function generateContentCalendar(project: Project, days: number = 30): Co
     });
   }
 
+  // Save to project
+  project.content.push(...calendar);
+  saveProject(project);
+
   logger.info('FacebookAgent', `Generated ${days}-day content calendar`);
   return calendar;
 }

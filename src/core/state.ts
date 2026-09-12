@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync, unlinkSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Project } from '../types/index.js';
 import { logger } from './logger.js';
@@ -81,6 +81,7 @@ export function loadProject(): Project | null {
     for (const task of project.tasks) {
       task.createdAt = new Date(task.createdAt);
       task.updatedAt = new Date(task.updatedAt);
+      if (task.completedAt) task.completedAt = new Date(task.completedAt);
     }
 
     // Reconstitute dates in evidence
@@ -108,6 +109,8 @@ export function saveProject(project: Project, action: string = 'update'): void {
     const tempFile = PROJECT_FILE + '.tmp';
     writeFileSync(tempFile, JSON.stringify(project, null, 2), 'utf-8');
     writeFileSync(PROJECT_FILE, readFileSync(tempFile), 'utf-8');
+    // Clean up temp file
+    try { rmSync(tempFile, { force: true }); } catch { /* ignore cleanup errors */ }
     logger.info('State', `Saved project: ${project.name} (action: ${action})`);
   } catch (error) {
     logger.error('State', 'Failed to save project', error as Error);
@@ -145,7 +148,9 @@ export function getHistoryFiles(): string[] {
 }
 
 export function loadFromHistory(filename: string): Project | null {
-  const filePath = join(HISTORY_DIR, filename);
+  // Prevent path traversal
+  const safeName = filename.replace(/[/\\]/g, '');
+  const filePath = join(HISTORY_DIR, safeName);
   if (!existsSync(filePath)) {
     logger.error('State', `History file not found: ${filename}`);
     return null;

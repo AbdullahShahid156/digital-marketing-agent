@@ -5,7 +5,7 @@ import { logger } from './core/logger.js';
 
 let isShuttingDown = false;
 
-async function gracefulShutdown(signal: string): Promise<void> {
+async function gracefulShutdown(signal: string, exitCode: number = 0): Promise<void> {
   if (isShuttingDown) return;
   isShuttingDown = true;
 
@@ -21,14 +21,14 @@ async function gracefulShutdown(signal: string): Promise<void> {
     // browser may not be initialized
   }
 
-  process.exit(0);
+  process.exit(exitCode);
 }
 
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('uncaughtException', (error) => {
   logger.error('Agent', 'Uncaught exception', error);
-  gracefulShutdown('uncaughtException').finally(() => process.exit(1));
+  gracefulShutdown('uncaughtException', 1);
 });
 
 runCLI(process.argv).catch((error) => {

@@ -64,6 +64,8 @@ export interface ExecutionReport {
   log: ExecutionLogEntry[];
 }
 
+const MAX_EXECUTION_LOG = 500;
+
 export class Orchestrator {
   private project: Project | null = null;
   private stepHistory: StepResult[] = [];
@@ -547,6 +549,7 @@ export class Orchestrator {
           status: 'EXECUTING',
         };
         this.executionLog.push(logEntry);
+        if (this.executionLog.length > MAX_EXECUTION_LOG) this.executionLog.shift();
 
         try {
           const result = await this.taskExecutor.executeTask(project, task);

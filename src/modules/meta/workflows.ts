@@ -139,9 +139,16 @@ function checkFacebookAuth(state: PageState): boolean {
 async function ensureFacebookAuth(): Promise<{ authenticated: boolean; state: PageState; screenshotPath: string | null }> {
   const state = await observePage();
   const authenticated = checkFacebookAuth(state);
-  const screenshotPath = authenticated ? null : await captureScreenshot(
-    {} as Project, '', '', 'auth-check', 'Auth Check', 'Facebook authentication check',
-  );
+  let screenshotPath: string | null = null;
+  if (!authenticated) {
+    try {
+      screenshotPath = await captureScreenshot(
+        {} as Project, '', '', 'auth-check', 'Auth Check', 'Facebook authentication check',
+      );
+    } catch {
+      // Screenshot failed, continue without it
+    }
+  }
   return { authenticated, state, screenshotPath };
 }
 

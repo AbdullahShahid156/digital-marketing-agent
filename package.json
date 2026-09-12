@@ -14,7 +14,7 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "typecheck": "tsc --noEmit",
-    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "clean": "node --input-type=module -e \"import { rmSync } from 'fs'; rmSync('dist',{recursive:true,force:true})\"",
     "agent": "tsx src/agent.ts",
     "agent:demo": "tsx src/agent.ts run --mode DEMO_MODE",
     "agent:live": "tsx src/agent.ts run --mode LIVE_MODE",

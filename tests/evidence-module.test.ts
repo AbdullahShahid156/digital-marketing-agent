@@ -50,7 +50,7 @@ describe('Evidence Module', () => {
         'Login Page'
       );
 
-      expect(evidence.id).toBe('EVD-1');
+      expect(evidence.id).toMatch(/^EVD-/);
       expect(evidence.title).toBe('Test Evidence');
       expect(evidence.status).toBe('ACTION_REQUIRED');
       expect(evidence.verificationStatus).toBe('PENDING');

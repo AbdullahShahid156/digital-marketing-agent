@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { EvidenceItem, Project, EvidenceCapture } from '../types/index.js';
 import { saveProject } from './state.js';
 import { logger } from './logger.js';
@@ -77,7 +78,7 @@ export function createEvidence(
   expectedScreen: string
 ): EvidenceItem {
   const evidence: EvidenceItem = {
-    id: `EVD-${project.evidence.length + 1}`,
+    id: `EVD-${randomUUID().slice(0, 8)}`,
     requirementId,
     taskId,
     title,

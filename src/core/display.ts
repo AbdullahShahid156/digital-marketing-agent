@@ -122,7 +122,6 @@ export function printFinalReport(report: ExecutionReport, tasks: Task[]): void {
   console.log('');
 
   const completed = tasks.filter(t => t.state === 'COMPLETED' || t.state === 'VERIFIED');
-  const simulated = tasks.filter(t => t.state === 'COMPLETED');
   const actionRequired = tasks.filter(t => t.state === 'ACTION_REQUIRED');
   const failed = tasks.filter(t => t.state === 'FAILED');
   const blocked = tasks.filter(t => t.state === 'BLOCKED');

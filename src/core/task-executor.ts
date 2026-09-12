@@ -83,10 +83,10 @@ export class TaskExecutor {
 
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
       result.retryCount = attempt;
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
       try {
         // Apply timeout
-        let timeoutId: ReturnType<typeof setTimeout> | undefined;
         const timeoutPromise = new Promise<never>((_, reject) => {
           timeoutId = setTimeout(() => reject(new Error(`Task timed out after ${this.taskTimeout}ms`)), this.taskTimeout);
         });
@@ -100,6 +100,8 @@ export class TaskExecutor {
         // If we got here, execution succeeded
         return result;
       } catch (err) {
+        // Clear timeout on failure too
+        if (timeoutId) clearTimeout(timeoutId);
         lastError = err instanceof Error ? err.message : String(err);
 
         // Don't retry on user action or approval required
@@ -811,7 +813,7 @@ export class TaskExecutor {
         case 'content':
           return await this.executeContentStep(project, task, step, action);
         case 'reports':
-          return this.executeReportStep(project, task, step, action);
+          return await this.executeReportStep(project, task, step, action);
         default:
           return { success: false, actionId: action.id, error: `Unknown tool: ${step.tool}` };
       }
@@ -987,10 +989,10 @@ export class TaskExecutor {
     }
   }
 
-  private executeReportStep(project: Project, _task: Task, step: ActionPlanStep, action: AgentAction): ActionResult {
+  private async executeReportStep(project: Project, _task: Task, step: ActionPlanStep, action: AgentAction): Promise<ActionResult> {
     switch (step.action) {
       case 'generate': {
-        const report = generateFinalReport(project);
+        const report = await generateFinalReport(project);
         const markdown = exportReportToMarkdown(report);
         return { success: true, actionId: action.id, observedState: { report, markdownLength: markdown.length } };
       }

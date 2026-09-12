@@ -258,7 +258,7 @@ export function generateLinkedInContentPlan(project: Project): ContentPlanItem[]
       content: [
         `Most businesses in ${location} are still treating digital marketing as an afterthought.`,
         '',
-        `In 2024, the businesses that win are the ones that treat marketing as a strategic investment, not an expense.`,
+        `In 2026, the businesses that win are the ones that treat marketing as a strategic investment, not an expense.`,
         '',
         `Here are 3 trends every ${industry} professional should know:`,
         '',
@@ -431,7 +431,7 @@ export function generateLinkedInContentPlan(project: Project): ContentPlanItem[]
       topic: 'Engagement Post / Poll',
       hook: `What is the biggest challenge facing your business right now?`,
       content: [
-        `POLL: What is your biggest marketing challenge in 2024?`,
+        `POLL: What is your biggest marketing challenge in 2026?`,
         '',
         'A) Getting enough leads',
         'B) Converting leads to customers',
@@ -671,7 +671,15 @@ export function generateOutreachMessages(
   let service: string;
 
   if (typeof prospectOrService === 'string') {
-    prospect = findClientProspects()[0];
+    const prospects = findClientProspects();
+    if (prospects.length === 0) {
+      return {
+        connectionRequest: 'Hello, I would like to connect with you.',
+        firstOutreach: 'Hi, I noticed your business could benefit from digital marketing services.',
+        followUp: 'Just following up on my previous message.',
+      };
+    }
+    prospect = prospects[0];
     service = prospectOrService;
   } else {
     prospect = prospectOrService;
@@ -768,16 +776,18 @@ function getDefaultProject(): Project {
     name: 'Hunarmand Punjab',
     description: 'Digital Marketing Services',
     business: {
+      id: 'biz-default',
       name: 'Hunarmand Punjab',
       industry: 'Digital Marketing',
       location: 'Lahore, Pakistan',
       description: 'Full-stack digital marketing services',
       website: 'https://www.hunarmand.pk',
       targetMarket: [],
-      competitors: [],
-      uniqueSellingProposition: '',
-      brandVoice: 'Professional',
-      marketingObjectives: [],
+      customerPersonas: [],
+      fourPs: { product: '', price: '', place: '', promotion: '' },
+      fourAs: { acceptability: '', affordability: '', accessibility: '', awareness: '' },
+      usp: '',
+      offers: [],
     },
     requirements: [],
     tasks: [],

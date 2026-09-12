@@ -19,6 +19,8 @@ export interface ExecutionPlan {
   verificationChecks: VerificationCheck[];
 }
 
+const MAX_HISTORY = 200;
+
 export class ActionExecutor {
   private mode: AgentMode;
   private maxRetries: number;
@@ -121,6 +123,7 @@ export class ActionExecutor {
         screenshot: state.screenshotPath,
       };
       this.executionHistory.push(result);
+      if (this.executionHistory.length > MAX_HISTORY) this.executionHistory.shift();
       return result;
     }
 
@@ -136,6 +139,7 @@ export class ActionExecutor {
       screenshot,
     };
     this.executionHistory.push(result);
+    if (this.executionHistory.length > MAX_HISTORY) this.executionHistory.shift();
     return result;
   }
 
@@ -182,6 +186,7 @@ export class ActionExecutor {
         };
 
         this.executionHistory.push(result);
+        if (this.executionHistory.length > MAX_HISTORY) this.executionHistory.shift();
         return result;
       } catch (err) {
         lastError = String(err);
@@ -204,6 +209,7 @@ export class ActionExecutor {
       error: `Failed after ${this.maxRetries} attempts: ${lastError}`,
     };
     this.executionHistory.push(failResult);
+    if (this.executionHistory.length > MAX_HISTORY) this.executionHistory.shift();
     return failResult;
   }
 

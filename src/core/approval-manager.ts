@@ -16,6 +16,8 @@ function determineRisk(tool: string, action: string): ApprovalRisk {
   return 'LOW';
 }
 
+const MAX_RESOLVED = 100;
+
 export class ApprovalManager {
   private pending: Map<string, ApprovalRequest> = new Map();
   private resolved: ApprovalRequest[] = [];
@@ -42,6 +44,7 @@ export class ApprovalManager {
     } else {
       request.resolvedAt = new Date();
       this.resolved.push(request);
+      if (this.resolved.length > MAX_RESOLVED) this.resolved.shift();
       logger.info('ApprovalManager', `Auto-approved: ${action.action}`);
     }
 
@@ -55,6 +58,7 @@ export class ApprovalManager {
     request.resolvedAt = new Date();
     this.pending.delete(requestId);
     this.resolved.push(request);
+    if (this.resolved.length > MAX_RESOLVED) this.resolved.shift();
     logger.info('ApprovalManager', `Approved: ${request.action}`);
     return request;
   }
@@ -66,6 +70,7 @@ export class ApprovalManager {
     request.resolvedAt = new Date();
     this.pending.delete(requestId);
     this.resolved.push(request);
+    if (this.resolved.length > MAX_RESOLVED) this.resolved.shift();
     logger.warn('ApprovalManager', `Denied: ${request.action}`);
     return request;
   }

@@ -1,7 +1,7 @@
 import type { Project, ContentCalendarItem } from '../../types/index.js';
 import { saveProject } from '../../core/state.js';
 import { logger } from '../../core/logger.js';
-import { generatePostCaption, isLLMConfigured } from '../../core/llm.js';
+import { generateText, generatePostCaption, isLLMConfigured } from '../../core/llm.js';
 
 export async function generateContentCalendar(
   project: Project,
@@ -64,7 +64,6 @@ export async function generateContentCalendar(
 export async function generateContentPillars(industry: string): Promise<string[]> {
   if (isLLMConfigured()) {
     try {
-      const { generateText } = await import('../../core/llm.js');
       const response = await generateText(
         `Generate 4 content pillars for a ${industry} business. These are main themes/categories for social media content. Return only the 4 pillar names, one per line.`,
         'You are a social media content strategist. Return concise pillar names only.',
@@ -90,7 +89,6 @@ export async function generateContentPillars(industry: string): Promise<string[]
 export async function generateHashtags(industry: string, location: string): Promise<string[]> {
   if (isLLMConfigured()) {
     try {
-      const { generateText } = await import('../../core/llm.js');
       const response = await generateText(
         `Generate 8 relevant social media hashtags for a ${industry} business in ${location}. Return only hashtags, one per line, including the # symbol.`,
         'You are a social media hashtag expert. Return only hashtags.',

@@ -181,7 +181,11 @@ export function createWebFetchTool(): Tool {
 export function registerWebResearchTools(): void {
   const tools = getWebResearchTools();
   for (const tool of tools) {
-    toolRegistry.register(tool);
+    try {
+      toolRegistry.register(tool);
+    } catch {
+      // Tool already registered, skip
+    }
   }
 }
 
