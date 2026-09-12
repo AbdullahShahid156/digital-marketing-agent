@@ -551,6 +551,10 @@ body {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
         Run Agent
       </button>
+      <button class="btn btn-danger" id="cancelBtn" onclick="cancelRun()" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+        Cancel
+      </button>
     </div>
   </header>
 
@@ -613,27 +617,59 @@ function connectWS() {
   };
 }
 
+let isAgentRunning = false;
+let executionLog = [];
+
 function handleWSMessage(msg) {
   switch(msg.type) {
     case 'state':
       projectData = msg.data;
       renderCurrentView();
       break;
+    case 'agent:start':
+      isAgentRunning = true;
+      executionLog = [];
+      document.getElementById('runBtn').style.display = 'none';
+      document.getElementById('cancelBtn').style.display = 'inline-flex';
+      toast('Agent started', 'info');
+      break;
+    case 'agent:progress':
+      executionLog.push({ time: new Date().toLocaleTimeString(), msg: msg.data.message });
+      renderCurrentView();
+      break;
     case 'task:start':
-      toast(`Executing: ${msg.data.title || msg.data.taskId}`, 'info');
+      isAgentRunning = true;
+      executionLog.push({ time: new Date().toLocaleTimeString(), msg: `[${msg.data.index}/${msg.data.total}] ${msg.data.title}` });
+      toast(`Running: ${msg.data.title}`, 'info');
+      renderCurrentView();
       break;
     case 'task:complete':
-      toast(`Task ${msg.data.status === 'SUCCESS' ? 'completed' : 'failed'}`, msg.data.status === 'SUCCESS' ? 'success' : 'error');
-      refreshData();
+      const statusMsg = msg.data.status === 'SUCCESS' ? 'done' : msg.data.status === 'ACTION_REQUIRED' ? 'needs action' : 'failed';
+      executionLog.push({ time: new Date().toLocaleTimeString(), msg: `${msg.data.title}: ${statusMsg}` });
+      if (msg.data.status !== 'SUCCESS' && msg.data.status !== 'ACTION_REQUIRED') {
+        toast(`${msg.data.title}: ${statusMsg}`, 'error');
+      }
+      renderCurrentView();
       break;
     case 'agent:complete':
-      toast('Agent execution complete!', 'success');
-      document.getElementById('runBtn').disabled = false;
-      refreshData();
+      isAgentRunning = false;
+      document.getElementById('runBtn').style.display = 'inline-flex';
+      document.getElementById('cancelBtn').style.display = 'none';
+      executionLog.push({ time: new Date().toLocaleTimeString(), msg: 'Execution complete' });
+      toast('Agent finished!', 'success');
+      renderCurrentView();
+      break;
+    case 'agent:cancelled':
+      isAgentRunning = false;
+      document.getElementById('runBtn').style.display = 'inline-flex';
+      document.getElementById('cancelBtn').style.display = 'none';
+      toast('Agent cancelled', 'info');
       break;
     case 'agent:error':
+      isAgentRunning = false;
+      document.getElementById('runBtn').style.display = 'inline-flex';
+      document.getElementById('cancelBtn').style.display = 'none';
       toast(`Error: ${msg.data.error}`, 'error');
-      document.getElementById('runBtn').disabled = false;
       break;
   }
 }
@@ -674,11 +710,12 @@ function renderCurrentView() {
 function renderDashboard() {
   const tasks = projectData?.tasks || [];
   const total = tasks.length;
-  const completed = tasks.filter(t => t.status === 'SUCCESS').length;
-  const failed = tasks.filter(t => t.status === 'FAILED').length;
-  const executing = tasks.filter(t => t.status === 'EXECUTING').length;
-  const pending = tasks.filter(t => t.status === 'PENDING').length;
-  const actionRequired = tasks.filter(t => t.status === 'ACTION_REQUIRED').length;
+  const completed = tasks.filter(t => t.state === 'COMPLETED' || t.status === 'SUCCESS').length;
+  const failed = tasks.filter(t => t.state === 'FAILED' || t.status === 'FAILED').length;
+  const executing = tasks.filter(t => t.state === 'IN_PROGRESS' || t.status === 'EXECUTING').length;
+  const pending = tasks.filter(t => t.state === 'PENDING' || t.status === 'PENDING').length;
+  const actionRequired = tasks.filter(t => t.state === 'ACTION_REQUIRED' || t.status === 'ACTION_REQUIRED').length;
+  const blocked = tasks.filter(t => t.state === 'BLOCKED' || t.status === 'BLOCKED').length;
   const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   return `
@@ -715,11 +752,23 @@ function renderDashboard() {
       </div>
     </div>
 
+    ${executionLog.length > 0 ? `
+    <div class="card" style="margin-bottom:24px;">
+      <div class="card-header">
+        <span class="card-title">Execution Log</span>
+        <span style="font-size:12px;color:var(--text-muted);">${isAgentRunning ? 'Running...' : 'Finished'}</span>
+      </div>
+      <div style="max-height:200px;overflow-y:auto;font-family:monospace;font-size:12px;line-height:1.8;">
+        ${executionLog.map(e => `<div style="color:var(--text-secondary);"><span style="color:var(--text-muted);">${e.time}</span> ${e.msg}</div>`).join('')}
+      </div>
+    </div>
+    ` : ''}
+
     <div class="section-header">
-      <h2 class="section-title">Recent Tasks</h2>
+      <h2 class="section-title">All Tasks</h2>
     </div>
     <div class="task-list">
-      ${tasks.slice(0, 8).map(t => renderTaskItem(t)).join('')}
+      ${tasks.slice(0, 12).map(t => renderTaskItem(t)).join('')}
       ${tasks.length === 0 ? '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><h3>No tasks yet</h3><p>Click "Run Agent" to get started</p></div>' : ''}
     </div>
   `;
@@ -727,17 +776,16 @@ function renderDashboard() {
 
 function renderTasks() {
   const tasks = projectData?.tasks || [];
-  const [filter, setFilter] = ['ALL'];
 
   return `
     <div class="section-header">
       <h2 class="section-title">All Tasks</h2>
       <div class="filter-chips">
         <span class="chip active" onclick="filterTasks('ALL', this)">All (${tasks.length})</span>
-        <span class="chip" onclick="filterTasks('SUCCESS', this)">Completed (${tasks.filter(t=>t.status==='SUCCESS').length})</span>
-        <span class="chip" onclick="filterTasks('EXECUTING', this)">Running (${tasks.filter(t=>t.status==='EXECUTING').length})</span>
-        <span class="chip" onclick="filterTasks('PENDING', this)">Pending (${tasks.filter(t=>t.status==='PENDING').length})</span>
-        <span class="chip" onclick="filterTasks('FAILED', this)">Failed (${tasks.filter(t=>t.status==='FAILED').length})</span>
+        <span class="chip" onclick="filterTasks('SUCCESS', this)">Completed (${tasks.filter(t=>t.state==='COMPLETED'||t.status==='SUCCESS').length})</span>
+        <span class="chip" onclick="filterTasks('EXECUTING', this)">Running (${tasks.filter(t=>t.state==='IN_PROGRESS'||t.status==='EXECUTING').length})</span>
+        <span class="chip" onclick="filterTasks('PENDING', this)">Pending (${tasks.filter(t=>t.state==='PENDING'||t.status==='PENDING').length})</span>
+        <span class="chip" onclick="filterTasks('FAILED', this)">Failed (${tasks.filter(t=>t.state==='FAILED'||t.status==='FAILED').length})</span>
       </div>
     </div>
     <div class="task-list" id="taskList">
@@ -748,7 +796,17 @@ function renderTasks() {
 }
 
 function renderTaskItem(t) {
-  const statusClass = t.status || 'PENDING';
+  const statusMap = {
+    'PENDING': 'PENDING',
+    'IN_PROGRESS': 'EXECUTING',
+    'COMPLETED': 'SUCCESS',
+    'FAILED': 'FAILED',
+    'ACTION_REQUIRED': 'ACTION_REQUIRED',
+    'BLOCKED': 'BLOCKED',
+    'SUCCESS': 'SUCCESS',
+    'EXECUTING': 'EXECUTING'
+  };
+  const statusClass = statusMap[t.state] || t.status || 'PENDING';
   const labels = {
     SUCCESS: 'Completed',
     FAILED: 'Failed',
@@ -773,7 +831,16 @@ function filterTasks(filter, el) {
   document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   const tasks = projectData?.tasks || [];
-  const filtered = filter === 'ALL' ? tasks : tasks.filter(t => t.status === filter);
+  const statusMap = {
+    'SUCCESS': ['COMPLETED', 'SUCCESS'],
+    'EXECUTING': ['IN_PROGRESS', 'EXECUTING'],
+    'PENDING': ['PENDING'],
+    'FAILED': ['FAILED'],
+    'BLOCKED': ['BLOCKED'],
+    'ACTION_REQUIRED': ['ACTION_REQUIRED']
+  };
+  const filterStates = statusMap[filter] || [filter];
+  const filtered = filter === 'ALL' ? tasks : tasks.filter(t => filterStates.includes(t.state) || filterStates.includes(t.status));
   document.getElementById('taskList').innerHTML = filtered.map(t => renderTaskItem(t)).join('');
 }
 
@@ -834,7 +901,7 @@ function hideRunModal() { document.getElementById('runModal').classList.remove('
 async function startRun() {
   const section = document.querySelector('input[name="section"]:checked').value;
   hideRunModal();
-  document.getElementById('runBtn').disabled = true;
+  executionLog = [];
   toast('Starting agent...', 'info');
 
   try {
@@ -845,7 +912,17 @@ async function startRun() {
     });
   } catch(e) {
     toast('Failed to start agent', 'error');
-    document.getElementById('runBtn').disabled = false;
+    document.getElementById('runBtn').style.display = 'inline-flex';
+    document.getElementById('cancelBtn').style.display = 'none';
+  }
+}
+
+async function cancelRun() {
+  try {
+    await fetch('/api/cancel', { method: 'POST' });
+    toast('Cancelling...', 'info');
+  } catch(e) {
+    toast('Failed to cancel', 'error');
   }
 }
 
