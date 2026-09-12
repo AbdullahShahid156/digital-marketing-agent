@@ -6,6 +6,7 @@ import {
   printRequirementPlan,
   printActionRequired,
   printFinalReport,
+  formatTaskState,
 } from '../core/display.js';
 import { logger, setLogLevel, LogLevel } from '../core/logger.js';
 import type { AgentMode } from '../types/index.js';
@@ -246,27 +247,6 @@ export async function executeTasks(options: CLIOptions): Promise<void> {
       console.log(`  ${state} ${task.title}${deps}`);
     }
     console.log('');
-  }
-}
-
-function formatTaskState(state: string): string {
-  switch (state) {
-    case 'COMPLETED':
-    case 'VERIFIED':
-      return '\x1b[32m✓\x1b[0m';
-    case 'RUNNING':
-    case 'IN_PROGRESS':
-      return '\x1b[34m→\x1b[0m';
-    case 'ACTION_REQUIRED':
-      return '\x1b[35m⚠\x1b[0m';
-    case 'APPROVAL_REQUIRED':
-      return '\x1b[33m🔒\x1b[0m';
-    case 'FAILED':
-      return '\x1b[31m✗\x1b[0m';
-    case 'BLOCKED':
-      return '\x1b[90m⊘\x1b[0m';
-    default:
-      return '\x1b[37m○\x1b[0m';
   }
 }
 

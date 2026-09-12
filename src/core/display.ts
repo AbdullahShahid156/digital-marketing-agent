@@ -166,19 +166,19 @@ export function formatTaskState(state: string): string {
   switch (state) {
     case 'COMPLETED':
     case 'VERIFIED':
-      return '✓';
+      return '\x1b[32m✓\x1b[0m';
     case 'RUNNING':
     case 'IN_PROGRESS':
-      return '→';
+      return '\x1b[34m→\x1b[0m';
     case 'ACTION_REQUIRED':
-      return '⚠';
+      return '\x1b[35m⚠\x1b[0m';
     case 'APPROVAL_REQUIRED':
-      return '🔒';
+      return '\x1b[33m🔒\x1b[0m';
     case 'FAILED':
-      return '✗';
+      return '\x1b[31m✗\x1b[0m';
     case 'BLOCKED':
-      return '⊘';
+      return '\x1b[90m⊘\x1b[0m';
     default:
-      return '○';
+      return '\x1b[37m○\x1b[0m';
   }
 }

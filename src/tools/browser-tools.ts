@@ -119,7 +119,7 @@ export function createBrowserTools(): Tool[] {
     ),
 
     createTool(
-      'browser_wait',
+      'browser_wait_navigation',
       'Wait for navigation to complete',
       'browser',
       [],
@@ -143,6 +143,78 @@ export function createBrowserTools(): Tool[] {
         const browser = getBrowserManager();
         await browser.uploadFile(params.selector as string, params.filePath as string);
         return { success: true, data: { uploaded: true }, timestamp: new Date() };
+      }
+    ),
+
+    createTool(
+      'browser_scroll',
+      'Scroll to an element or scroll down one viewport',
+      'browser',
+      [
+        { name: 'selector', type: 'string', description: 'CSS selector to scroll to (optional, scrolls down if omitted)', required: false },
+      ],
+      async (params) => {
+        const browser = getBrowserManager();
+        await browser.scroll(params.selector as string | undefined);
+        const state = await browser.getCurrentState();
+        return { success: true, data: state, timestamp: new Date() };
+      }
+    ),
+
+    createTool(
+      'browser_hover',
+      'Hover over an element on the page',
+      'browser',
+      [
+        { name: 'selector', type: 'string', description: 'CSS selector for the element', required: true },
+      ],
+      async (params) => {
+        const browser = getBrowserManager();
+        await browser.hover(params.selector as string);
+        const state = await browser.getCurrentState();
+        return { success: true, data: state, timestamp: new Date() };
+      }
+    ),
+
+    createTool(
+      'browser_press_key',
+      'Press a keyboard key (Enter, Tab, Escape, ArrowDown, etc.)',
+      'browser',
+      [
+        { name: 'key', type: 'string', description: 'Key to press (e.g., Enter, Tab, Escape, ArrowDown)', required: true },
+      ],
+      async (params) => {
+        const browser = getBrowserManager();
+        await browser.pressKey(params.key as string);
+        return { success: true, data: { key: params.key }, timestamp: new Date() };
+      }
+    ),
+
+    createTool(
+      'browser_evaluate',
+      'Execute JavaScript on the page and return the result',
+      'browser',
+      [
+        { name: 'expression', type: 'string', description: 'JavaScript expression to evaluate', required: true },
+      ],
+      async (params) => {
+        const browser = getBrowserManager();
+        const result = await browser.evaluate(params.expression as string);
+        return { success: true, data: { result }, timestamp: new Date() };
+      }
+    ),
+
+    createTool(
+      'browser_wait',
+      'Wait for a specified time in milliseconds',
+      'browser',
+      [
+        { name: 'ms', type: 'number', description: 'Milliseconds to wait', required: true },
+      ],
+      async (params) => {
+        const browser = getBrowserManager();
+        await browser.waitForTimeout(params.ms as number);
+        return { success: true, data: { waited: params.ms }, timestamp: new Date() };
       }
     ),
   ];

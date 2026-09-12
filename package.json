@@ -10,10 +10,19 @@
     "dev": "tsx src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist",
-    "agent": "tsx src/agent.ts"
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "agent": "tsx src/agent.ts",
+    "agent:demo": "tsx src/agent.ts run --mode DEMO_MODE",
+    "agent:live": "tsx src/agent.ts run --mode LIVE_MODE",
+    "agent:q1": "tsx src/agent.ts run --section Q1",
+    "agent:q2": "tsx src/agent.ts run --section Q2",
+    "agent:status": "tsx src/agent.ts status",
+    "agent:report": "tsx src/agent.ts report",
+    "agent:tasks": "tsx src/agent.ts tasks"
   },
   "keywords": [
     "digital-marketing",

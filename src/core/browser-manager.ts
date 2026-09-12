@@ -2,6 +2,7 @@ import { chromium, type Browser, type BrowserContext, type Page } from 'playwrig
 import { mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { logger } from './logger.js';
+import { getConfig, type AgentConfig } from './config.js';
 import type { BrowserPageState, BrowserElement } from '../types/index.js';
 
 const PROFILES_DIR = join(process.cwd(), 'browser-profiles');
@@ -20,11 +21,13 @@ export class BrowserManager {
   private profileName: string;
   private headless: boolean;
   private slowMo: number;
+  private config: AgentConfig;
 
   constructor(options: BrowserManagerOptions = {}) {
-    this.profileName = options.profileName || 'default';
-    this.headless = options.headless ?? false;
-    this.slowMo = options.slowMo ?? 0;
+    this.config = getConfig();
+    this.profileName = options.profileName || this.config.browser.profileName;
+    this.headless = options.headless ?? this.config.browser.headless;
+    this.slowMo = options.slowMo ?? this.config.browser.slowMo;
   }
 
   async launch(): Promise<void> {
@@ -36,9 +39,9 @@ export class BrowserManager {
         {
           headless: this.headless,
           slowMo: this.slowMo,
-          viewport: { width: 1280, height: 720 },
-          locale: 'en-US',
-          timezoneId: 'Asia/Karachi',
+          viewport: this.config.browser.viewport,
+          locale: this.config.browser.locale,
+          timezoneId: this.config.browser.timezone,
           args: [
             '--disable-blink-features=AutomationControlled',
             '--disable-gpu',
@@ -76,9 +79,9 @@ export class BrowserManager {
         ],
       });
       this.context = await browser.newContext({
-        viewport: { width: 1280, height: 720 },
-        locale: 'en-US',
-        timezoneId: 'Asia/Karachi',
+        viewport: this.config.browser.viewport,
+        locale: this.config.browser.locale,
+        timezoneId: this.config.browser.timezone,
       });
       this.browser = browser;
     }
@@ -223,6 +226,42 @@ export class BrowserManager {
   async getPageContent(): Promise<string> {
     const page = this.getPage();
     return page.content();
+  }
+
+  async scroll(selector?: string): Promise<void> {
+    const page = this.getPage();
+    if (selector) {
+      await page.locator(selector).scrollIntoViewIfNeeded();
+      logger.info('BrowserManager', `Scrolled to: ${selector}`);
+    } else {
+      await page.evaluate(() => window.scrollBy(0, window.innerHeight));
+      logger.info('BrowserManager', 'Scrolled down one viewport');
+    }
+  }
+
+  async hover(selector: string): Promise<void> {
+    const page = this.getPage();
+    await page.hover(selector, { timeout: 10000 });
+    logger.info('BrowserManager', `Hovered: ${selector}`);
+  }
+
+  async pressKey(key: string): Promise<void> {
+    const page = this.getPage();
+    await page.keyboard.press(key);
+    logger.info('BrowserManager', `Key pressed: ${key}`);
+  }
+
+  async evaluate(expression: string): Promise<unknown> {
+    const page = this.getPage();
+    const result = await page.evaluate(expression);
+    logger.info('BrowserManager', `Evaluated expression`);
+    return result;
+  }
+
+  async waitForTimeout(ms: number): Promise<void> {
+    const page = this.getPage();
+    await page.waitForTimeout(ms);
+    logger.debug('BrowserManager', `Waited ${ms}ms`);
   }
 }
 
