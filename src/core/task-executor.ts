@@ -32,6 +32,7 @@ import { executeLinkedInQ2Workflow } from '../modules/linkedin/workflows.js';
 export interface TaskExecutorOptions {
   mode: AgentMode;
   maxRetries?: number;
+  taskTimeout?: number;
 }
 
 export interface TaskExecutionResult {
@@ -41,17 +42,22 @@ export interface TaskExecutionResult {
   actionResults: ActionResult[];
   evidenceCaptured: string[];
   error?: string;
+  retryCount?: number;
 }
 
 export class TaskExecutor {
   private executor: ActionExecutor;
   private mode: AgentMode;
+  private maxRetries: number;
+  private taskTimeout: number;
 
   constructor(options: TaskExecutorOptions) {
     this.mode = options.mode;
+    this.maxRetries = options.maxRetries ?? 3;
+    this.taskTimeout = options.taskTimeout ?? 120000;
     this.executor = new ActionExecutor({
       mode: options.mode,
-      maxRetries: options.maxRetries ?? 3,
+      maxRetries: this.maxRetries,
     });
   }
 
@@ -70,61 +76,100 @@ export class TaskExecutor {
       state: task.state,
       actionResults: [],
       evidenceCaptured: [],
+      retryCount: 0,
     };
 
-    try {
-      updateTaskState(project, task.id, 'IN_PROGRESS');
-      result.state = 'IN_PROGRESS';
+    let lastError: string | undefined;
 
-      if (!task.executionMode) {
-        task.executionMode = this.inferExecutionMode(task);
-      }
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      result.retryCount = attempt;
 
-      if (!task.actionPlan && task.executionMode !== 'USER_ACTION') {
-        task.actionPlan = this.createActionPlan(project, task);
-      }
+      try {
+        // Apply timeout
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error(`Task timed out after ${this.taskTimeout}ms`)), this.taskTimeout);
+        });
 
-      switch (task.executionMode) {
-        case 'AUTOMATED':
-          await this.executeAutomated(project, task, result);
-          break;
-        case 'BROWSER':
-          await this.executeBrowser(project, task, result);
-          break;
-        case 'RESEARCH':
-          await this.executeResearch(project, task, result);
-          break;
-        case 'CONTENT':
-          await this.executeContent(project, task, result);
-          break;
-        case 'USER_ACTION':
-          await this.executeUserAction(project, task, result);
-          break;
-        case 'APPROVAL_REQUIRED':
-          await this.executeApprovalRequired(project, task, result);
-          break;
-      }
+        const executionPromise = this.executeTaskInternal(project, task, result);
+        await Promise.race([executionPromise, timeoutPromise]);
 
-      if (result.state === 'ACTION_REQUIRED') {
-        task.dataClassification = 'ACTION_REQUIRED';
-      } else if (result.state === 'BLOCKED') {
-        task.dataClassification = 'BLOCKED';
-      }
+        // If we got here, execution succeeded
+        return result;
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : String(err);
 
-      if (result.success) {
-        updateTaskState(project, task.id, 'COMPLETED');
-        result.state = 'COMPLETED';
+        // Don't retry on user action or approval required
+        if (result.state === 'ACTION_REQUIRED' || result.state === 'BLOCKED') {
+          return result;
+        }
+
+        if (attempt < this.maxRetries) {
+          logger.warn('TaskExecutor', `Task ${task.id} failed (attempt ${attempt + 1}/${this.maxRetries + 1}): ${lastError}`);
+          // Reset state for retry
+          result.state = task.state;
+          result.success = false;
+          result.actionResults = [];
+          result.evidenceCaptured = [];
+
+          // Wait before retry with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, Math.min(1000 * Math.pow(2, attempt), 5000)));
+        }
       }
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      logger.error('TaskExecutor', `Task ${task.id} failed: ${errorMsg}`);
-      updateTaskState(project, task.id, 'FAILED');
-      result.state = 'FAILED';
-      result.error = errorMsg;
     }
+
+    // All retries exhausted
+    logger.error('TaskExecutor', `Task ${task.id} failed after ${this.maxRetries + 1} attempts: ${lastError}`);
+    updateTaskState(project, task.id, 'FAILED');
+    result.state = 'FAILED';
+    result.error = lastError;
 
     saveProject(project, `execute_task_${task.id}`);
     return result;
+  }
+
+  private async executeTaskInternal(project: Project, task: Task, result: TaskExecutionResult): Promise<void> {
+    updateTaskState(project, task.id, 'IN_PROGRESS');
+    result.state = 'IN_PROGRESS';
+
+    if (!task.executionMode) {
+      task.executionMode = this.inferExecutionMode(task);
+    }
+
+    if (!task.actionPlan && task.executionMode !== 'USER_ACTION') {
+      task.actionPlan = this.createActionPlan(project, task);
+    }
+
+    switch (task.executionMode) {
+      case 'AUTOMATED':
+        await this.executeAutomated(project, task, result);
+        break;
+      case 'BROWSER':
+        await this.executeBrowser(project, task, result);
+        break;
+      case 'RESEARCH':
+        await this.executeResearch(project, task, result);
+        break;
+      case 'CONTENT':
+        await this.executeContent(project, task, result);
+        break;
+      case 'USER_ACTION':
+        await this.executeUserAction(project, task, result);
+        break;
+      case 'APPROVAL_REQUIRED':
+        await this.executeApprovalRequired(project, task, result);
+        break;
+    }
+
+    if (result.state === 'ACTION_REQUIRED') {
+      task.dataClassification = 'ACTION_REQUIRED';
+    } else if (result.state === 'BLOCKED') {
+      task.dataClassification = 'BLOCKED';
+    }
+
+    if (result.success) {
+      updateTaskState(project, task.id, 'COMPLETED');
+      result.state = 'COMPLETED';
+    }
   }
 
   private inferExecutionMode(task: Task): TaskExecutionMode {

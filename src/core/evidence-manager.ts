@@ -60,8 +60,8 @@ export async function captureEvidence(
       capture.pageUrl = s.url;
       capture.pageTitle = s.title;
     }
-  } catch {
-    // ignore
+  } catch (err) {
+    logger.debug('EvidenceManager', `Could not get page state: ${err instanceof Error ? err.message : 'Unknown error'}`);
   }
 
   logger.info('EvidenceManager', `Captured evidence: ${title} -> ${capture.screenshotPath}`);

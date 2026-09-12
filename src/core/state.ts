@@ -7,11 +7,16 @@ const DATA_DIR = join(process.cwd(), 'data');
 const PROJECT_FILE = join(DATA_DIR, 'project.json');
 const HISTORY_DIR = join(DATA_DIR, 'history');
 
+const MAX_BACKUPS = 50;
+const BACKUP_CLEANUP_INTERVAL = 10;
+
 export interface StateSnapshot {
   timestamp: Date;
   action: string;
   data: Project;
 }
+
+let saveCount = 0;
 
 function ensureDataDir(): void {
   if (!existsSync(DATA_DIR)) {
@@ -19,6 +24,26 @@ function ensureDataDir(): void {
   }
   if (!existsSync(HISTORY_DIR)) {
     mkdirSync(HISTORY_DIR, { recursive: true });
+  }
+}
+
+function cleanupOldBackups(): void {
+  try {
+    const files = readdirSync(HISTORY_DIR)
+      .filter((f: string) => f.endsWith('.json'))
+      .sort();
+
+    if (files.length > MAX_BACKUPS) {
+      const filesToDelete = files.slice(0, files.length - MAX_BACKUPS);
+      for (const file of filesToDelete) {
+        const { unlinkSync } = require('node:fs');
+        unlinkSync(join(HISTORY_DIR, file));
+        logger.debug('State', `Cleaned up old backup: ${file}`);
+      }
+      logger.info('State', `Cleaned up ${filesToDelete.length} old backups`);
+    }
+  } catch (error) {
+    logger.warn('State', `Failed to cleanup backups: ${error}`);
   }
 }
 
@@ -30,6 +55,12 @@ function createBackup(action: string): void {
   try {
     copyFileSync(PROJECT_FILE, backupFile);
     logger.debug('State', `Backup created: ${backupFile}`);
+
+    // Cleanup old backups periodically
+    saveCount++;
+    if (saveCount % BACKUP_CLEANUP_INTERVAL === 0) {
+      cleanupOldBackups();
+    }
   } catch (error) {
     logger.warn('State', `Failed to create backup: ${error}`);
   }
