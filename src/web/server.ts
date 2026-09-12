@@ -299,7 +299,7 @@ app.post('/api/task/:taskId/approve', (req, res) => {
 });
 
 // SPA catch-all
-app.get('*', (_req, res) => {
+app.get('/{*path}', (_req, res) => {
   res.sendFile(join(import.meta.dirname, 'public', 'index.html'));
 });
 
